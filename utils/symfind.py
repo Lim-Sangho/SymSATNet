@@ -1,15 +1,10 @@
 from __future__ import annotations
-from typing import Iterable, Optional
+from typing import Optional
 from functools import reduce
-from sklearn.cluster import KMeans
-from torch import threshold
 from utils.algebra import *
 from utils.grammar import *
-from utils.draw import draw
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import math
 
 
 def kron_split(C: torch.Tensor, rtol: float) -> list[tuple[torch.Tensor]]:
@@ -132,7 +127,7 @@ def wreath_split(C: torch.Tensor, perm: torch.Tensor,
         n = len(B_i) // m
 
         if m == 1:
-            summands.append(sym_find(B_i, rtol))
+            summands.append(symfind(B_i, rtol))
         elif n == 1:
             summands.append(Id(dim = len(B_i)))
         else:
@@ -150,7 +145,7 @@ def wreath_split(C: torch.Tensor, perm: torch.Tensor,
                 for j in range(m):
                     B[i, j] = torch.mean(off_diag[n*i:n*(i+1), n*j:n*(j+1)])
 
-            summands.append(Wreath(sym_find(A, rtol), sym_find(B, rtol)))
+            summands.append(Wreath(symfind(A, rtol), symfind(B, rtol)))
 
     return reduce(Sum, summands).permute(perm_inverse(perm))
 
@@ -384,7 +379,7 @@ def maximal_grammar(C: torch.Tensor, grammars: list[Grammar]) -> Grammar:
         return grammars[argmin[torch.argmin(errors)]]
 
 
-def sym_find(C: torch.Tensor, rtol: float) -> Grammar:
+def symfind(C: torch.Tensor, rtol: float) -> Grammar:
     """
     Find the underlying group structure of the layer.
     The detection priority is determined by the number of basis matrices.
@@ -405,9 +400,9 @@ def sym_find(C: torch.Tensor, rtol: float) -> Grammar:
         wreath = check_wreath(A, B, rtol)
         if wreath is not None:
             A, B = wreath
-            grammars.append(Wreath(sym_find(B[1], rtol), sym_find(A[0], rtol)))
+            grammars.append(Wreath(symfind(B[1], rtol), symfind(A[0], rtol)))
         else:
-            grammars.append(Kron(sym_find(A[0], rtol), sym_find(B[0], rtol)))
+            grammars.append(Kron(symfind(A[0], rtol), symfind(B[0], rtol)))
     
     if N < 70:
         C_perm, perm, blocks, super_blocks = sum_split(C, rtol)

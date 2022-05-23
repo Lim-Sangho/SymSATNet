@@ -1,5 +1,4 @@
 # %%
-from functools import reduce
 import os
 import argparse
 import warnings
@@ -7,7 +6,6 @@ from sklearn.exceptions import ConvergenceWarning
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 import torch
-import numpy as np
 import matplotlib.pyplot as plt
 from IPython.display import display
 from torch.utils.data import TensorDataset, DataLoader
@@ -16,7 +14,7 @@ from tqdm.autonotebook import tqdm
 from utils.logger import *
 from utils.draw import *
 from utils.grammar import *
-from utils import symfind
+from utils.symfind import symfind
 import satnet
 import symsatnet
 
@@ -195,7 +193,7 @@ def trial(problem, model, trial_num):
         if model == "AutoSymSATNet" and projector.auto and projector.proj_period + 1 == epoch:
             S = sat.S.detach().cpu()
             C = S @ S.T
-            projector = symfind.sym_find(C[1:, 1:], rtol = projector.rtol)
+            projector = symfind(C[1:, 1:], rtol = projector.rtol)
             basis = projector.basis()
             upper = projector.proj(C[0, 1:], projector.orbits())
             coeff = coordinates(C[1:, 1:], basis)
@@ -249,7 +247,7 @@ if __name__=='__main__':
 #     C = torch.randn(projector.dim, projector.dim)
 #     C = projector.proj(C)
 
-#     grammar = symfind_test.sym_find(C, False)
+#     grammar = symfind_test.symfind(C, False)
 #     print(grammar)
 
 # if __name__ == "__main__":
@@ -264,7 +262,7 @@ if __name__=='__main__':
 #     D_proj = G.proj(D)
 
 #     draw(D_proj)
-#     result = symfind.sym_find(D_proj, 1e-2)
+#     result = symfind(D_proj, 1e-2)
 #     print(result)
 #     print(result.proj_error(D_proj))
  
@@ -315,7 +313,7 @@ if __name__=='__main__':
 #         D_noise = D_proj + noise * noise_ratio
 #         D_perm, D_proj, D_noise = shuffle_all(torch.stack([D, D_proj, D_noise]), n_perm)
 
-#         result = symfind.sym_find(D_noise, rtol = rtol)
+#         result = symfind(D_noise, rtol = rtol)
 #         D_result = result.proj(D_perm)
 #         D_result_proj = result.proj(D_proj)
 
@@ -345,6 +343,6 @@ if __name__=='__main__':
     #     C = C[1:, 1:]
     #     draw(C)
 
-    # result = symfind.sym_find(C, 4e-2)
+    # result = symfind(C, 4e-2)
     # print(result)
 # %%
