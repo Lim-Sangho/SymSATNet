@@ -96,7 +96,7 @@ def trial(problem, model, trial_num, corrupt_num = 0):
     print("===> Setting hyperparameters")
 
     n = {"sudoku": 729, "cube": 324}[problem]
-    data_dir = {"sudoku": "dataset/sudoku_10000", "cube": "dataset/cube_10000_2_2_1"}[problem]
+    data_dir = {"sudoku": "dataset/sudoku_10000", "cube": "dataset/cube_10000"}[problem]
     save_dir = problem + f"_trial_{trial_num}_corrupt_{corrupt_num}/" + model
 
     rank = {"SATNet-Low": 5/6, "SATNet-Full": 1, "SATNet-Low-300aux": 5/6, "SATNet-Full-300aux": 1,

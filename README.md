@@ -6,6 +6,7 @@ This repository is ...
 
 
 ## 2. Dependencies
+We only provide the GPU implementation of SymSATNet.
 Installing SATNet, SymSATNet
 
 > conda python

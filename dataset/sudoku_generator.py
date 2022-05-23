@@ -234,7 +234,7 @@ def test_torch(X, Y, N = 3):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--save_dir', type=str, default='sudoku_toy')
+    parser.add_argument('--save_dir', type=str, default='sudoku')
     parser.add_argument('--boardSz', type=int, default=3)
     parser.add_argument('--nRepeat', type=int, default=100)
     parser.add_argument('--check', action='store_true', default=True)

@@ -193,7 +193,7 @@ def normalize(vector: torch.Tensor) -> torch.Tensor:
     """
     Normalize the vector.
     """
-    return (vector - torch.mean(vector)) / torch.std(vector)
+    return (vector - torch.mean(vector)) / torch.std(vector, unbiased = False)
 
 
 def proj_orbit(C: torch.Tensor, G1: Grammar, G2: Grammar) -> torch.Tensor:

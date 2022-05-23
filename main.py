@@ -15,6 +15,7 @@ from utils.logger import *
 from utils.draw import *
 from utils.grammar import *
 from utils.symfind import symfind
+
 import satnet
 import symsatnet
 
@@ -85,22 +86,19 @@ def test(epoch, model, projector, optimizer, loader, logger, figlogger, save_dir
     run(epoch, model, projector, optimizer, loader, logger, figlogger, save_dir, False)
 
 
-def trial(problem, model, trial_num):
+def trial(problem, model, trial_num, gpu_num):
     print("===> Trial: {}".format(trial_num))
     print("===> Problem: {}".format(problem))
     print("===> Model: {}".format(model))
     print("===> Setting hyperparameters")
 
     n = {"sudoku": 729, "cube": 324}[problem]
-    data_dir = {"sudoku": "dataset/sudoku_10000", "cube": "dataset/cube_10000_2_2_1"}[problem]
+    data_dir = {"sudoku": "dataset/sudoku_10000", "cube": "dataset/cube_10000"}[problem]
     save_dir = problem + f"_trial_{trial_num}/" + model
 
-    rank = {"SATNet-Low": 5/6, "SATNet-Full": 1, "SATNet-Low-300aux": 5/6, "SATNet-Full-300aux": 1,
-            "Proj-Mild": 1, "Proj-Sharp": 1, "SymSATNet": 1, "AutoSymSATNet": 1}[model]
-    aux = {"SATNet-Low": 0, "SATNet-Full": 0, "SATNet-Low-300aux": 300, "SATNet-Full-300aux": 300,
-           "Proj-Mild": 0, "Proj-Sharp": 0, "SymSATNet": 0, "AutoSymSATNet": 0}[model]
-    lr = {"SATNet-Low": 2e-3, "SATNet-Full": 2e-3, "SATNet-Low-300aux": 2e-3, "SATNet-Full-300aux": 2e-3,
-          "Proj-Mild": 2e-3, "Proj-Sharp": 2e-3, "SymSATNet": 4e-2, "AutoSymSATNet": 2e-3}[model]
+    rank = {"SATNet-Plain": 1, "SATNet-300aux": 1, "SymSATNet": 1, "SymSATNet-Auto": 1}[model]
+    aux = {"SATNet-Plain": 0, "SATNet-300aux": 300, "SymSATNet": 0, "SymSATNet-Auto": 0}[model]
+    lr = {"SATNet-Plain": 2e-3, "SATNet-300aux": 2e-3, "SymSATNet": 4e-2, "SymSATNet-Auto": 2e-3}[model]
 
     if model == "Proj-Mild":
         projector = {"sudoku": Sudoku, "cube": Cube}[problem]().symmetrize()
@@ -117,25 +115,23 @@ def trial(problem, model, trial_num):
         projector.proj_period = {"sudoku": float("inf"), "cube": float("inf")}[problem]
         projector.proj_lr = {"sudoku": 0, "cube": 0}[problem]
         projector.auto = False
-    elif model == "AutoSymSATNet":
+    elif model == "SymSATNet-Auto":
         projector = Id(dim = n)
         projector.proj_period = {"sudoku": 10, "cube": 20}[problem]
         projector.proj_lr = {"sudoku": 1, "cube": 1}[problem]
-        projector.rtol = {"sudoku": 2e-2, "cube": 4e-2}[problem]
+        projector.rtol = {"sudoku": 5e-2, "cube": 1e-1}[problem]
         projector.auto = True
     else:
         projector = None
 
     batchSz, testBatchSz, testPct, nEpoch = 40, 40, 0.1, 100
-    gpu = (trial_num - 1) % torch.cuda.device_count()
-    # gpu = 0
 
     print('===> Initializing CUDA')
 
     assert torch.cuda.is_available()
-    torch.cuda.set_device(torch.device("cuda:{}".format(gpu)))
-    print('===> Using', torch.cuda.get_device_name(gpu))
-    print('===> Using', "cuda:{}".format(gpu))
+    torch.cuda.set_device(torch.device("cuda:{}".format(gpu_num)))
+    print('===> Using', torch.cuda.get_device_name(gpu_num))
+    print('===> Using', "cuda:{}".format(gpu_num))
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     torch.cuda.init()
@@ -190,7 +186,7 @@ def trial(problem, model, trial_num):
     figtest_logger = FigLogger(fig, axes[1], 'Testing')
     
     for epoch in range(1, nEpoch+1):
-        if model == "AutoSymSATNet" and projector.auto and projector.proj_period + 1 == epoch:
+        if model == "SymSATNet-Auto" and projector.auto and projector.proj_period + 1 == epoch:
             S = sat.S.detach().cpu()
             C = S @ S.T
             projector = symfind(C[1:, 1:], rtol = projector.rtol)
@@ -218,131 +214,54 @@ def trial(problem, model, trial_num):
         display(fig)
 
 
-def main(trial_num, problem_num, model_num):
+def main(trial_num, problem_num, model_num, gpu_num):
     problems = ["sudoku", "cube"]
-    models = ["SATNet-Low", "SATNet-Full", "SATNet-Low-300aux", "SATNet-Full-300aux", "Proj-Mild", "Proj-Sharp", "SymSATNet", "AutoSymSATNet"]
+    models = ["SATNet-Plain", "SATNet-300aux", "SymSATNet", "SymSATNet-Auto"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--trial_num', type=int, default=trial_num)
     parser.add_argument('--problem', type=str, default=problems[problem_num])
     parser.add_argument('--model', type=str, default=models[model_num])
+    parser.add_argument('--gpu_num', type=int, default=gpu_num)
     args = parser.parse_args(args = [])
     
     assert args.problem in problems
     assert args.model in models
 
-    trial(args.problem, args.model, args.trial_num)
+    trial(args.problem, args.model, args.trial_num, args.gpu_num)
 
 
-if __name__=='__main__':
-    for problem_num in [0]:
-        for trial_num in [3, 6]:
-            for model_num in [7, 6, 1, 3]:
-                main(trial_num = trial_num, problem_num = problem_num, model_num = model_num)
+# if __name__== '__main__':
+#     for problem_num in [0]:
+#         for trial_num in [3, 6]:
+#             for model_num in [7, 6, 1, 3]:
+#                 main(trial_num = trial_num, problem_num = problem_num, model_num = model_num, gpu_num = 0)
 
 
-# if __name__ == "__main__":
-#     is_sudoku = True
-#     projector = Sudoku() if is_sudoku else Cube()
-#     C = torch.randn(projector.dim, projector.dim)
-#     C = projector.proj(C)
+# if __name__ == '__main__':
+#     import time
+#     G = Kron(Sum(Wreath(Perm(2), Perm(3)), Sum(Wreath(Perm(3), Perm(8)), Kron(Perm(2), Id(10)))), Perm(6))
+#     # G = Cube()
+#     # G = Kron(Perm(30), Id(10))
+#     # G = Kron(Id(15), Id(15))
+#     C = torch.rand(G.dim, G.dim)
 
-#     grammar = symfind_test.symfind(C, False)
-#     print(grammar)
+#     print(G.n_basis())
 
-# if __name__ == "__main__":
-#     m, n = 2, 3
-#     Cm = Cyclic(dim = m)
-#     Cn = Cyclic(dim = n)
-#     Sm = Perm(dim = m)
-#     Sn = Perm(dim = n)
+#     start = time.time()
+#     G.proj(C)
+#     print(time.time() - start)
 
-#     G = Cube().perm_move
-#     D = torch.rand(G.dim, G.dim)
-#     D_proj = G.proj(D)
+#     start = time.time()
+#     G._proj(C)
+#     print(time.time() - start)
 
-#     draw(D_proj)
-#     result = symfind(D_proj, 1e-2)
-#     print(result)
-#     print(result.proj_error(D_proj))
- 
-    # G = reduce(Sum, [Cm] * n)
-    # rtol = 0.02
-    # n_perm = 60
+# if __name__ == '__main__':
+#     with open("results/validation_results/cube_trial_3_corrupt_0/SymSATNet-Val/layers/20.pt", "rb") as f:
+#     with open("results/corrupt_results/sudoku_trial_1_corrupt_3/SymSATNet-Val/layers/20.pt", "rb") as f:
+#         C = torch.load(f).detach().cpu()[1:, 1:]
+#         C = C @ C.T
 
-    # G = Wreath(Wreath(Perm(dim = 3), Perm(dim = 3)), Perm(dim = 3))
-    # rtol = 0.01
-    # n_perm = 60
-
-    # G = Wreath(Perm(dim = 3), Perm(dim = 10))
-    # rtol = 0.02
-    # n_perm = 60
-
-    # G = Sum(Wreath(Perm(dim = 3), Perm(dim = 3)), Cyclic(dim = 3))
-    # rtol = 0.04
-    # n_perm = 60
-
-    # G = Sum(Cm, Sum(Cm, Cm))
-    # D = torch.randn(G.dim, G.dim)
-    # D = G.proj(D)
-    # draw(D, dpi = 800, save = "original")
-
-    # D = swap(D, 3, 10)
-    # D = swap(D, 6, 9)
-    # D = swap(D, 5, 8)
-    # D = swap(D, 4, 7)
-    # D = swap(D, 8, 10)
-    # D = swap(D, 11, 5)
-    # draw(D, dpi = 800, save = "shuffled")
-
-
-#     G = Kron(Kron(Perm(dim = 2), Perm(dim = 2)), Perm(dim = 2))
-#     rtol = 0.01
-#     n_perm = 0
-
-#     num_trials = 1000
-#     sub_correct = 0
-#     correct = 0
-
-#     for _ in range(num_trials):
-#         D = torch.randn(G.dim, G.dim)
-#         D_proj = G.proj(D)
-
-#         noise = torch.rand(D.shape)
-#         noise_ratio = 5e-3
-#         D_noise = D_proj + noise * noise_ratio
-#         D_perm, D_proj, D_noise = shuffle_all(torch.stack([D, D_proj, D_noise]), n_perm)
-
-#         result = symfind(D_noise, rtol = rtol)
-#         D_result = result.proj(D_perm)
-#         D_result_proj = result.proj(D_proj)
-
-#         if torch.allclose(D_proj, D_result):
-#             correct += 1
-        
-#         if torch.allclose(D_proj, D_result_proj):
-#             sub_correct += 1
-
-# print(correct)
-# print(sub_correct)
-
-# if __name__ == "__main__":
-#     with open("new_results/cube_trial_1/SATNet-Full/layers/10.pt", 'rb') as f:
-#         S1 = torch.load(f).detach().cpu()
-#         draw(0.2 ** (S1 @ S1.T))
-
-#     with open("trash/sudoku_trial_1/SATNet-Full/layers/5.pt", 'rb') as f:
-#         S2 = torch.load(f).detach().cpu()
-#         draw(0.2 ** (S2 @ S2.T))
-
-# if __name__ == "__main__":
-    # with open("new_results/sudoku_trial_1/SATNet-Full/layers/10.pt", "rb") as f:
-    # with open("new_results/cube_trial_1/SATNet-Full/layers/20.pt", "rb") as f:
-    #     S = torch.load(f).detach().cpu()
-    #     C = S @ S.T
-    #     C = C[1:, 1:]
-    #     draw(C)
-
-    # result = symfind(C, 4e-2)
-    # print(result)
+#     draw(C)
+#     print(symfind(C, 0.065))
 # %%

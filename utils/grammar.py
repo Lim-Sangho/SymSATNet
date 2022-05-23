@@ -1,8 +1,7 @@
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from typing import Optional
 from itertools import product
-from dataset.cube_gen import Cube333
+from dataset.cube_generator import Cube333
 from utils.algebra import *
 import torch
 
@@ -120,7 +119,7 @@ class Grammar(metaclass = ABCMeta):
 
     def proj_error(self, C: torch.Tensor) -> float:
         """
-        Return the normalized projection error of C, i.e., $error = norm(proj(C) - C) / norm(C)$.
+        Return the projection error of C, i.e., ||(proj(C) - C)||_F / ||C||_F .
         """
         if isinstance(self, Id):
             return 0
