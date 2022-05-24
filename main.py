@@ -214,6 +214,59 @@ def trial(problem, model, trial_num, gpu_num):
         display(fig)
 
 
+def validation(projector, S, frame, valid_err, valid_args):
+    print(projector)
+
+    new_S = frame(projector).proj_S(S, 1.0)
+    new_S.requires_grad = True
+    valid_args[1].S = torch.nn.Parameter(new_S.cuda())
+    err = test(*valid_args)
+    if err <= valid_err - 0.2:
+        return projector
+
+    if isinstance(projector, Id) or isinstance(projector, Cyclic) or isinstance(projector, Symm):
+        return Id(dim = projector.dim)
+
+    if isinstance(projector, Kron):
+        G1 = projector.G1
+        G2 = projector.G2
+        frame1 = lambda G: frame(Kron(G, Id(dim = G2.dim)).permute(projector.perm))
+        frame2 = lambda G: frame(Kron(Id(dim = G1.dim), G).permute(projector.perm))
+        new_G1 = validation(G1, S, frame1, valid_err, valid_args)
+        new_G2 = validation(G2, S, frame2, valid_err, valid_args)
+
+        return Kron(new_G1, new_G2).permute(projector.perm)
+
+    if isinstance(projector, Sum):
+        G1 = projector.G1
+        G2 = projector.G2
+        frame1 = lambda G: frame(Sum(G, Id(dim = G2.dim)).permute(projector.perm))
+        frame2 = lambda G: frame(Sum(Id(dim = G1.dim), G).permute(projector.perm))
+        new_G1 = validation(G1, S, frame1, valid_err, valid_args)
+        new_G2 = validation(G2, S, frame2, valid_err, valid_args)
+
+        return Sum(new_G1, new_G2).permute(projector.perm)
+
+    if isinstance(projector, Wreath):
+        G1 = projector.G1
+        G2 = projector.G2
+
+        new_projector = Kron(G2, G1)
+        new_S = frame(new_projector).proj_S(S, 1.0)
+        new_S.requires_grad = True
+        valid_args[1].S = torch.nn.Parameter(new_S.cuda())
+        err = test(*valid_args)
+        if err <= valid_err:
+            return projector
+
+        frame1 = lambda G: frame(Wreath(G, Id(dim = G2.dim)).permute(projector.perm))
+        frame2 = lambda G: frame(Wreath(Id(dim = G1.dim), G).permute(projector.perm))
+        new_G1 = validation(G1, S, frame1, valid_err, valid_args)
+        new_G2 = validation(G2, S, frame2, valid_err, valid_args)
+
+        return Wreath(new_G1, new_G2).permute(projector.perm)
+
+
 def main(trial_num, problem_num, model_num, gpu_num):
     problems = ["sudoku", "cube"]
     models = ["SATNet-Plain", "SATNet-300aux", "SymSATNet", "SymSATNet-Auto"]
@@ -240,9 +293,9 @@ def main(trial_num, problem_num, model_num, gpu_num):
 
 # if __name__ == '__main__':
 #     import time
-#     G = Kron(Sum(Wreath(Perm(2), Perm(3)), Sum(Wreath(Perm(3), Perm(8)), Kron(Perm(2), Id(10)))), Perm(6))
+#     G = Kron(Sum(Wreath(Symm(2), Symm(3)), Sum(Wreath(Symm(3), Symm(8)), Kron(Symm(2), Id(10)))), Symm(6))
 #     # G = Cube()
-#     # G = Kron(Perm(30), Id(10))
+#     # G = Kron(Symm(30), Id(10))
 #     # G = Kron(Id(15), Id(15))
 #     C = torch.rand(G.dim, G.dim)
 
@@ -257,11 +310,14 @@ def main(trial_num, problem_num, model_num, gpu_num):
 #     print(time.time() - start)
 
 # if __name__ == '__main__':
-#     with open("results/validation_results/cube_trial_3_corrupt_0/SymSATNet-Val/layers/20.pt", "rb") as f:
-#     with open("results/corrupt_results/sudoku_trial_1_corrupt_3/SymSATNet-Val/layers/20.pt", "rb") as f:
+#     with open(".results/validation_results/cube_trial_2_corrupt_0/SymSATNet-Val/layers/20.pt", "rb") as f:
+#     # with open(".results/corrupt_results/sudoku_trial_2_corrupt_3/SymSATNet-Val/layers/20.pt", "rb") as f:
 #         C = torch.load(f).detach().cpu()[1:, 1:]
 #         C = C @ C.T
 
 #     draw(C)
-#     print(symfind(C, 0.065))
+#     grammar, perm = symfind(C, 0.1)
+#     print(grammar)
+    
+#     draw(C[perm_inverse(perm)][:, perm_inverse(perm)])
 # %%

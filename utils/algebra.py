@@ -104,18 +104,6 @@ def swap(tensor: torch.Tensor, i: int, j: int) -> torch.Tensor:
     return tensor
 
 
-def perm_inverse(perm: torch.Tensor) -> torch.Tensor:
-    """
-    Find the inverse permutation of perm.
-    """
-    inversed = []
-    for i in range(len(perm)):
-        where = torch.where(perm == i)[0]
-        inversed.append(where)
-    inversed = torch.cat(inversed)
-    return inversed
-
-
 def shuffle(vector: torch.Tensor, n_shuffle: int) -> torch.Tensor:
     """
     Shuffle the indices of the vector.
@@ -196,28 +184,34 @@ def normalize(vector: torch.Tensor) -> torch.Tensor:
     return (vector - torch.mean(vector)) / torch.std(vector, unbiased = False)
 
 
-def proj_orbit(C: torch.Tensor, G1: Grammar, G2: Grammar) -> torch.Tensor:
+def perm_inverse(perm: torch.Tensor) -> torch.Tensor:
     """
-    Project the off-diagonal matrix C with the actions of G1 and G2.
-    The shape of C is [G1.dim, G2.dim, ... ].
+    Find the inverse permutation of perm.
     """
-    from utils.grammar import Id
-    C_proj = C
+    inversed = []
+    for i in range(len(perm)):
+        where = torch.where(perm == i)[0]
+        inversed.append(where)
+    inversed = torch.cat(inversed)
+    return inversed
 
-    if not isinstance(G1, Id):
-        orbit_1 = G1.orbits()
-        C_inner_1 = torch.einsum("ij,j...->i...", orbit_1, C)
-        orbit_inner_1 = torch.einsum("i...->i", orbit_1)
-        coeffs_1 = torch.einsum("i...,i->i...", C_inner_1, 1 / orbit_inner_1)
-        C_proj = torch.einsum("ij,i...->j...", orbit_1, coeffs_1)
-    C_proj = C_proj.transpose(0, 1)
 
-    if not isinstance(G2, Id):
-        orbit_2 = G2.orbits()
-        C_inner_2 = torch.einsum("ij,j...->i...", orbit_2, C_proj)
-        orbit_inner_2 = torch.einsum("i...->i", orbit_2)
-        coeffs_2 = torch.einsum("i...,i->i...", C_inner_2, 1 / orbit_inner_2)
-        C_proj = torch.einsum("ij,i...->j...", orbit_2, coeffs_2)
-    C_proj = C_proj.transpose(0, 1)
+def perm_sum(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+    """
+    Find the direct sum of permutations A and B.
+    """
+    return torch.cat([A, B + len(A)])
 
-    return C_proj
+
+def perm_kron(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+    """
+    Find the Kronecker product of permutations A and B.
+    """
+    return torch.arange(len(A) * len(B)).reshape(len(A), len(B))[A][:,B].flatten()
+
+
+def perm_wreath(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+    """
+    Find the wreath product of permutations A and B.
+    """
+    return perm_kron(B, A)
