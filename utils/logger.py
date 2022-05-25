@@ -43,3 +43,27 @@ class FigLogger(object):
             for line in ax.lines:
                 line.remove()
         self.curves = [[], []]
+    
+
+class TimeLogger(object):
+    def __init__(self, fig, base_ax, title):
+        self.color = 'tab:orange'
+        self.ax = base_ax
+        base_ax.set_xlabel('Epochs')
+        base_ax.set_title(title)
+        base_ax.set_ylabel('Time (sec)', color=self.color)
+        base_ax.tick_params(axis='y', labelcolor=self.color)
+
+        self.reset()
+        self.fig = fig
+        
+    def log(self, arg):
+        self.curve.append(arg)
+        x = list(range(len(self.curve)))
+        self.ax.plot(x, self.curve, self.color, marker='.')
+        self.fig.canvas.draw()
+        
+    def reset(self):
+        for line in self.ax.lines:
+            line.remove()
+        self.curve = []

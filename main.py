@@ -10,9 +10,10 @@ warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 import torch
 import matplotlib.pyplot as plt
-from IPython.display import display
+from IPython.display import display, clear_output
 from torch.utils.data import TensorDataset, DataLoader
 from tqdm.autonotebook import tqdm
+from time import sleep
 
 from utils.logger import *
 from utils.draw import *
@@ -24,7 +25,7 @@ import satnet
 import symsatnet
 
 
-def run(epoch, model, group, optimizer, loader, logger, figlogger, save_dir, to_train = False):
+def run(epoch, model, group, optimizer, loader, logger, figlogger, timelogger, save, save_dir, to_train = False):
     loss_total, err_total = 0, 0
     torch.cuda.synchronize()
     start = torch.cuda.Event(enable_timing = True)
@@ -53,42 +54,36 @@ def run(epoch, model, group, optimizer, loader, logger, figlogger, save_dir, to_
 
     loss_total, err_total = loss_total/len(loader), err_total/len(loader)
 
-    if to_train: 
-        torch.save(model.S, os.path.join(save_dir + "/layers", f'{epoch}.pt'))
+    if to_train:
+        if save:
+            torch.save(model.S, os.path.join(save_dir + "/layers", f'{epoch}.pt'))
         print('TRAINING SET RESULTS: Average loss: {:.4f} Err: {:.4f}'.format(loss_total, err_total))
 
     else:
         print('TESTING SET RESULTS: Average loss: {:.4f} Err: {:.4f}'.format(loss_total, err_total))
-
-    if to_train and group and not group.rtol and epoch % group.proj_period == 0:
-        S = model.S.detach().cpu()
-        new_S = group.proj_S(S)
-        new_S.requires_grad = True
-        model.S = torch.nn.Parameter(new_S.cuda())
-        print('S is Projected: {}'.format(group))
-        with open(save_dir + "/grammar.csv", "a") as f:
-            f.write(f"{epoch},{group}\n")
-            f.close()
         
     end.record()
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
 
-    if logger is not None:
-        logger.log([epoch, loss_total, err_total, start.elapsed_time(end)])
+    if save:
+        if logger is not None:
+            logger.log([epoch, loss_total, err_total, start.elapsed_time(end) / 1000])
     if figlogger is not None:
         figlogger.log([epoch, loss_total, err_total])
+    if timelogger is not None:
+        timelogger.log(start.elapsed_time(end) / 1000)
 
-    return err_total, start.elapsed_time(end)
+    return err_total
 
 
-def train(epoch, model, group, optimizer, loader, logger, figlogger, save_dir):
-    return run(epoch, model, group, optimizer, loader, logger, figlogger, save_dir, True)
+def train(epoch, model, group, optimizer, loader, logger, figlogger, timelogger, save, save_dir):
+    return run(epoch, model, group, optimizer, loader, logger, figlogger, timelogger, save, save_dir, True)
 
 
 @torch.no_grad()
-def test(epoch, model, group, optimizer, loader, logger, figlogger, save_dir):
-    return run(epoch, model, group, optimizer, loader, logger, figlogger, save_dir, False)
+def test(epoch, model, group, optimizer, loader, logger, figlogger, timelogger, save, save_dir):
+    return run(epoch, model, group, optimizer, loader, logger, figlogger, timelogger, save, save_dir, False)
 
 
 @torch.no_grad()
@@ -99,7 +94,7 @@ def validation(grammar: Grammar, construct_group: Callable[[Grammar], Group], S:
     new_S = new_group.proj_S(S)
     new_S.requires_grad = True
     valid_args[1].S = torch.nn.Parameter(new_S.cuda())
-    err = test(*valid_args)[0]
+    err = test(*valid_args)
     if err <= valid_err - eps:
         return grammar
 
@@ -128,7 +123,7 @@ def validation(grammar: Grammar, construct_group: Callable[[Grammar], Group], S:
         return Wreath(new_G1, new_G2)
 
 
-def trial(problem, model, trial_num, corrupt_num, gpu_num, save):
+def main(trial_num = 1, problem = "sudoku", model = "SATNet-Plain", corrupt_num = 0, gpu_num = 0, save = False):
     print("===> Trial: {}".format(trial_num))
     print("===> Problem: {}".format(problem))
     print("===> Model: {}".format(model))
@@ -239,12 +234,18 @@ def trial(problem, model, trial_num, corrupt_num, gpu_num, save):
         train_logger.log(['epoch', 'loss', 'err', 'time'])
         test_logger.log(['epoch', 'loss', 'err', 'time'])
         valid_logger.log(['epoch', 'group', 'time'])
+    
+    else:
+        train_logger = None
+        test_logger = None
+        valid_logger = None
 
     plt.ioff()
-    fig, axes = plt.subplots(1,3, figsize=(10,4))
+    fig, axes = plt.subplots(1,3, figsize=(15,4))
     plt.subplots_adjust(wspace=0.4)
     figtrain_logger = FigLogger(fig, axes[0], 'Traininig')
-    figtest_logger = FigLogger(fig, axes[1], 'Testing')
+    figtest_logger = FigLogger(fig, axes[1], 'Test')
+    figtime_logger = TimeLogger(fig, axes[2], 'Time')
 
     for epoch in range(1, nEpoch+1):
         if model == "SymSATNet-Auto" and epoch == group.proj_period + 1:
@@ -262,7 +263,7 @@ def trial(problem, model, trial_num, corrupt_num, gpu_num, save):
             # Find a useful subgroup with a validation step
             valid_loader = tqdm(DataLoader(valid_set, batch_size = validBatchSz))
             valid_args = [epoch, sat, group, None, valid_loader, None, None, save_dir]
-            valid_err = test(*valid_args)[0]
+            valid_err = test(*valid_args)
             grammar = validation(group.grammar, group.set_grammar, S, valid_err, valid_args, eps)
             group = group.set_grammar(grammar)
 
@@ -284,41 +285,32 @@ def trial(problem, model, trial_num, corrupt_num, gpu_num, save):
 
             print('S is Projected: {}'.format(group))
             print("Elapsed time: {}".format(start.elapsed_time(end)))
-            valid_logger.log([epoch, group, start.elapsed_time(end)])
+            if save:
+                valid_logger.log([epoch, group, start.elapsed_time(end)])
 
             group.proj_period = float("inf")
             group.proj_lr = 0
 
         train_loader = tqdm(DataLoader(train_set, batch_size = batchSz))
-        train(epoch, sat, group, optimizer, train_loader, train_logger, figtrain_logger, save_dir)
+        train(epoch, sat, group, optimizer, train_loader, train_logger, figtrain_logger, figtime_logger, save, save_dir)
         test_loader = tqdm(DataLoader(test_set, batch_size = testBatchSz))
-        test(epoch, sat, group, optimizer, test_loader, test_logger, figtest_logger, save_dir)
+        test(epoch, sat, group, optimizer, test_loader, test_logger, figtest_logger, None, save, save_dir)
+        clear_output(wait = True)
         display(fig)
 
-
-def main(trial_num, problem_num, model_num, corrupt_num, gpu_num, save):
+    
+if __name__ == "__main__":
     problems = ["sudoku", "cube"]
     models = ["SATNet-Plain", "SATNet-300aux", "SymSATNet", "SymSATNet-Auto"]
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--trial_num', type=int, default=trial_num)
-    parser.add_argument('--problem', type=str, default=problems[problem_num])
-    parser.add_argument('--model', type=str, default=models[model_num])
-    parser.add_argument('--corrupt_num', type=int, default=corrupt_num)
-    parser.add_argument('--gpu_num', type=int, default=gpu_num)
-    parser.add_argument('--save', action="store_true", default=save)
-    args = parser.parse_args(args = [])
-    
-    assert args.problem in problems
-    assert args.model in models
+    parser.add_argument('--trial_num', type=int, default=1)
+    parser.add_argument('--problem_num', type=int, default=0)
+    parser.add_argument('--model_num', type=int, default=0)
+    parser.add_argument('--corrupt_num', type=int, default=0)
+    parser.add_argument('--gpu_num', type=int, default=0)
+    parser.add_argument('--save', action="store_true", default=False)
+    args = parser.parse_args()
 
-    trial(args.problem, args.model, args.trial_num, args.corrupt_num, args.gpu_num, args.save)
-
-
-if __name__== '__main__':
-    for problem_num in [1]:
-        for trial_num in [1]:
-            for model_num in [3]:
-                for corrupt_num in [3]:
-                    main(trial_num, problem_num, model_num, corrupt_num, gpu_num = 0, save = False)
+    main(args.trial_num, problems[args.problem_num], models[args.model_num], args.corrupt_num, args.gpu_num, args.save)
 # %%
