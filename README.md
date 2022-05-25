@@ -1,11 +1,6 @@
 # Learning Symmetric Rules with SATNet
 
-## 1. Introduction
-
-This repository is ...
-
-
-## 2. Dependencies
+## 1. Dependencies
 We only provide the GPU implementation of SymSATNet.
 Installing SATNet, SymSATNet
 
@@ -14,26 +9,26 @@ Installing SATNet, SymSATNet
 > torch
 
 
-## 3. Related Work
+## 2. Related Work
 SATNet
 
 
-## 4. SymSATNet
+## 3. SymSATNet
 Theorem
 
 
-## 5. Symfind
+## 4. Symfind
 Description and figures
 
 
-## 6. Tasks
+## 5. Tasks
 Sudoku, Rubik's cube, Noisy datasets, recovering arbitrary groups
 Description and figures
 
 
-## 7. Training and Evaluation
-See main.py and notebook files.
+## 6. Training and Evaluation
+See main.py and experiment.ipynb.
 
 
-## 8. Results
+## 7. Results
 Tables and plots
