@@ -123,7 +123,7 @@ def validation(grammar: Grammar, construct_group: Callable[[Grammar], Group], S:
         return Wreath(new_G1, new_G2)
 
 
-def main(trial_num = 1, problem = "sudoku", model = "SATNet-Plain", corrupt_num = 0, gpu_num = 0, save = False):
+def main(trial_num = 1, problem = "sudoku", model = "SymSATNet", corrupt_num = 0, gpu_num = 0, save = False):
     print("===> Trial: {}".format(trial_num))
     print("===> Problem: {}".format(problem))
     print("===> Model: {}".format(model))
@@ -262,7 +262,7 @@ def main(trial_num = 1, problem = "sudoku", model = "SATNet-Plain", corrupt_num 
 
             # Find a useful subgroup with a validation step
             valid_loader = tqdm(DataLoader(valid_set, batch_size = validBatchSz))
-            valid_args = [epoch, sat, group, None, valid_loader, None, None, save_dir]
+            valid_args = [epoch, sat, group, None, valid_loader, None, None, None, save, save_dir]
             valid_err = test(*valid_args)
             grammar = validation(group.grammar, group.set_grammar, S, valid_err, valid_args, eps)
             group = group.set_grammar(grammar)
@@ -300,17 +300,17 @@ def main(trial_num = 1, problem = "sudoku", model = "SATNet-Plain", corrupt_num 
 
     
 if __name__ == "__main__":
-    problems = ["sudoku", "cube"]
-    models = ["SATNet-Plain", "SATNet-300aux", "SymSATNet", "SymSATNet-Auto"]
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--trial_num', type=int, default=1)
-    parser.add_argument('--problem_num', type=int, default=0)
-    parser.add_argument('--model_num', type=int, default=0)
+    parser.add_argument('--problem', type=str, default='sudoku')
+    parser.add_argument('--model', type=str, default='SymSATNet')
     parser.add_argument('--corrupt_num', type=int, default=0)
     parser.add_argument('--gpu_num', type=int, default=0)
     parser.add_argument('--save', action="store_true", default=False)
     args = parser.parse_args()
 
-    main(args.trial_num, problems[args.problem_num], models[args.model_num], args.corrupt_num, args.gpu_num, args.save)
+    assert args.problem in ["sudoku", "cube"]
+    assert args.model in ["SATNet-Plain", "SATNet-300aux", "SymSATNet", "SymSATNet-Auto"]
+
+    main(args.trial_num, args.problem, args.model, args.corrupt_num, args.gpu_num, args.save)
 # %%
