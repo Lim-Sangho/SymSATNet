@@ -20,8 +20,8 @@ rule cuda_compile
 
 
 
-build /home/sangho/SATNet_share/src/SymSATNet/build/temp.linux-x86_64-3.8/src/symsatnet.o: compile /home/sangho/SATNet_share/src/SymSATNet/src/symsatnet.cpp
-build /home/sangho/SATNet_share/src/SymSATNet/build/temp.linux-x86_64-3.8/src/symsatnet_cuda.o: cuda_compile /home/sangho/SATNet_share/src/SymSATNet/src/symsatnet_cuda.cu
+build /home/sangho/SymSATNet/src/SymSATNet/build/temp.linux-x86_64-3.8/src/symsatnet.o: compile /home/sangho/SymSATNet/src/SymSATNet/src/symsatnet.cpp
+build /home/sangho/SymSATNet/src/SymSATNet/build/temp.linux-x86_64-3.8/src/symsatnet_cuda.o: cuda_compile /home/sangho/SymSATNet/src/SymSATNet/src/symsatnet_cuda.cu
 
 
 

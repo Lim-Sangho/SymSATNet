@@ -8,7 +8,7 @@ import torch
 
 class Grammar(metaclass = ABCMeta):
     """
-    Grammar of group symmetries.
+    Grammar of permutation groups.
     """
 
     @abstractmethod
@@ -65,61 +65,9 @@ class Grammar(metaclass = ABCMeta):
         self.basis_cached = basis
 
         return self
-        
-    def proj(self, C: torch.Tensor) -> torch.Tensor:
-        """
-        Return the projected matrix of the layer.
-        """
-        if isinstance(self, Id):
-            return C
-        else:
-            if self.n_basis() <= 500:
-                basis = self.basis()
-                return torch.einsum("i,i...->...", coordinates(C, basis), basis)
-            else:
-                return self._proj(C)
-
-    def proj_S(self, S: torch.Tensor, proj_lr: float = 1.0) -> torch.Tensor:
-        """
-        Return the projected layer of S (which also includes the top column).
-        """
-        S = S.detach().cpu()
-        C = S @ S.t()
-
-        new_C = self.proj_C(C, proj_lr)
-        U, D, Vh = torch.svd(new_C)
-        new_S = U @ torch.sqrt(torch.diag(D))
-
-        return new_S            
-
-    def proj_C(self, C: torch.Tensor, proj_lr: float = 1.0) -> torch.Tensor:
-        """
-        Return the projected layer of C (which also includes the top column).
-        """
-        n = len(C) - 1
-        C = C.detach().cpu()
-
-        new_C = torch.clone(C)
-        top = proj_orbit(C[0:1, 1:], Id(dim = 1), self)[0]
-        # top = self.proj(C[0, 1:], self.orbits())
-        new_C[0, 1:] = top
-        new_C[1:, 0] = top
-        new_C[1:n+1, 1:n+1] = self.proj(C[1:n+1, 1:n+1])
-        new_C = proj_lr * new_C + (1 - proj_lr) * C
-
-        return new_C
-
-    def proj_error(self, C: torch.Tensor) -> float:
-        """
-        Return the projection error of C, i.e., ||(proj(C) - C)||_F / ||C||_F .
-        """
-        if isinstance(self, Id):
-            return 0
-        else:
-            return float(torch.norm(self.proj(C) - C) / torch.norm(C))
 
 
-class Id(torch.nn.Module, Grammar):
+class Id(Grammar):
     """
     Class of identity groups.
     """
@@ -146,6 +94,10 @@ class Id(torch.nn.Module, Grammar):
 
     def _coeff_diag_index(self) -> torch.Tensor:
         return torch.arange(self.dim) * (self.dim + 1)
+
+    def cuda(self) -> Grammar:
+        self.orbits_cached = self.orbits().cuda()
+        return self
 
     def basis(self) -> torch.Tensor:
         if self.basis_cached is None:
@@ -196,6 +148,11 @@ class Cyclic(Grammar):
     def _coeff_diag_index(self) -> torch.Tensor:
         return torch.LongTensor([0])
 
+    def cuda(self) -> Grammar:
+        self.basis_cached = self.basis().cuda()
+        self.orbits_cached = self.orbits().cuda()
+        return self
+
     def basis(self) -> torch.Tensor:
         if self.basis_cached is None:
             self.basis_cached = torch.stack([torch.roll(torch.eye(self.dim), i, 0) for i in range(self.dim)])
@@ -244,6 +201,11 @@ class Symm(Grammar):
 
     def _coeff_diag_index(self) -> torch.Tensor:
         return torch.LongTensor([0])
+
+    def cuda(self) -> Grammar:
+        self.basis_cached = self.basis().cuda()
+        self.orbits_cached = self.orbits().cuda()
+        return self
 
     def basis(self) -> torch.Tensor:
         if self.basis_cached is None:
@@ -299,6 +261,11 @@ class Gen(Grammar):
     def _coeff_diag_index(self) -> torch.Tensor:
         return torch.LongTensor([i for i, b in enumerate(self.basis()) 
             if torch.allclose(b * (torch.ones(b.shape) - torch.eye(b.shape[0])), torch.zeros(1))])
+
+    def cuda(self) -> Grammar:
+        self.basis_cached = self.basis().cuda()
+        self.orbits_cached = self.orbits().cuda()
+        return self
 
     def basis(self) -> torch.Tensor:
         if self.basis_cached is None:
@@ -387,6 +354,12 @@ class Sum(Grammar):
 
     def _coeff_diag_index(self) -> torch.Tensor:
         return torch.cat([self.G1._coeff_diag_index(), self.G2._coeff_diag_index() + self.G1.n_basis()])
+
+    def cuda(self) -> Grammar:
+        self.G1 = self.G1.cuda()
+        self.G2 = self.G2.cuda()
+        self.orbits_cached = self.orbits().cuda()
+        return self
 
     def basis(self) -> torch.Tensor:
         if self.basis_cached is None:
@@ -485,6 +458,12 @@ class Kron(Grammar):
         b2 = self.G2.n_basis()
         return torch.arange(b1 * b2).reshape(b1, b2)[c1][:,c2].flatten()
 
+    def cuda(self) -> Grammar:
+        self.G1 = self.G1.cuda()
+        self.G2 = self.G2.cuda()
+        self.orbits_cached = self.orbits().cuda()
+        return self
+
     def basis(self) -> torch.Tensor:
         if self.basis_cached is None:
             self.basis_cached = torch.stack([torch.kron(B1, B2)
@@ -547,12 +526,15 @@ class Wreath(Grammar):
         diag = forward_orbit(diag, self.G2, Id(dim = b1)).transpose(0, 1)
         diag = self.G1._forward(diag)
         diag_embed = torch.zeros(diag.shape[0], diag.shape[1], diag.shape[2], diag.shape[2], *diag.shape[3:])
+        if coeff.is_cuda: diag_embed = diag_embed.cuda()
         for i in range(diag.shape[2]):
             diag_embed[:, :, i, i, ...] = diag[:, :, i, ...]
 
-        off_diag = coeff[b1*o2:].reshape(b2-o2, o1**2)
+        off_diag = coeff[b1*o2:].reshape(b2-o2, o1**2, *coeff.shape[1:])
         for i in c2:
-            off_diag = torch.cat([off_diag[:i], torch.zeros(1, *off_diag.shape[1:]), off_diag[i:]])
+            pad = torch.zeros(1, *off_diag.shape[1:])
+            if coeff.is_cuda: pad = pad.cuda()
+            off_diag = torch.cat([off_diag[:i], pad, off_diag[i:]])
         off_diag = self.G2._forward(off_diag).transpose(1, 2).transpose(0, 1)
         off_diag = forward_orbit(off_diag, self.G1, self.G1)
         
@@ -582,6 +564,12 @@ class Wreath(Grammar):
         o2 = self.G2.n_orbits()
         return torch.arange(o2 * b1).reshape(o2, b1)[:,c1].flatten()
         
+    def cuda(self) -> Grammar:
+        self.G1 = self.G1.cuda()
+        self.G2 = self.G2.cuda()
+        self.orbits_cached = self.orbits().cuda()
+        return self
+
     def basis(self) -> torch.Tensor:
         if self.basis_cached is None:
             dim_1 = self.G1.dim

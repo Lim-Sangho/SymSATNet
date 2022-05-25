@@ -4,6 +4,7 @@ from functools import reduce
 from itertools import compress
 from utils.algebra import *
 from utils.grammar import *
+from utils.group import *
 import numpy as np
 import torch
 
@@ -132,10 +133,12 @@ def wreathfind_in_sumfind(C: torch.Tensor, perm: torch.Tensor,
     num_blocks = torch.Tensor(num_blocks).long()
 
     if len(super_blocks) == 1 and num_blocks[0] == 1:
-        if Symm(dim = N).proj_error(C) <= rtol:
+        Sn = Symm(dim = N)
+        if Group(Sn, torch.arange(N)).proj_error(C) <= rtol:
             return Symm(dim = N), perm_inverse(perm)
 
-        if Cyclic(dim = N).proj_error(C) <= rtol:
+        Zn = Cyclic(dim = N)
+        if Group(Zn, torch.arange(N)).proj_error(C) <= rtol:
             return Cyclic(dim = N), perm_inverse(perm)
 
         return Id(dim = N), torch.arange(0, N)
@@ -356,10 +359,10 @@ def max_group(C: torch.Tensor, groups: list[tuple[Grammar, torch.Tensor]], rtol:
     else:
         print(*[grammar for grammar, perm in groups])
         print(*[grammar.n_basis() for grammar, perm in groups])
-        print(*[grammar.proj_error(C[perm_inverse(perm)][:,perm_inverse(perm)]) for grammar, perm in groups])
+        print(*[Group(grammar, perm).proj_error(C) for grammar, perm in groups])
         print()
 
-        errors = torch.Tensor([grammar.proj_error(C[perm_inverse(perm)][:,perm_inverse(perm)]) for grammar, perm in groups])
+        errors = torch.Tensor([Group(grammar, perm).proj_error(C) for grammar, perm in groups])
         error_filter = errors <= (rtol * 5)
         
         if not torch.any(error_filter):
@@ -385,12 +388,12 @@ def symfind(C: torch.Tensor, rtol: float) -> tuple[Grammar, torch.Tensor]:
     groups = []
 
     Sn = Symm(dim = N)
-    if Sn.proj_error(C) <= rtol:
+    if Group(Sn, torch.arange(N)).proj_error(C) <= rtol:
         return Sn, torch.arange(0, N)
 
-    Cn = Cyclic(dim = N)
-    if Cn.proj_error(C) <= rtol:
-        groups.append((Cn, torch.arange(0, N)))
+    Zn = Cyclic(dim = N)
+    if Group(Zn, torch.arange(N)).proj_error(C) <= rtol:
+        groups.append((Zn, torch.arange(0, N)))
         
     if N < 70:
         groups.append(sumfind(C, rtol))

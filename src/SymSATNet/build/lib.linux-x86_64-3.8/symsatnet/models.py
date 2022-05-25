@@ -1,35 +1,55 @@
 import torch
-import torch.nn as nn
-from torch.autograd import Function
-
-assert torch.cuda.is_available()
 import symsatnet._cuda
+from utils.group import Group
+assert torch.cuda.is_available()
 
 
-class EquivariantLayer(Function):
+class BasisFunc(torch.autograd.Function):
 
     @staticmethod
-    def forward(ctx, coeff: torch.Tensor, upper: torch.Tensor, bases: torch.Tensor) -> torch.Tensor:
-        sub = torch.einsum("b,bij->ij", coeff, bases)
+    def forward(ctx, coeff: torch.Tensor, upper: torch.Tensor, basis: torch.Tensor) -> torch.Tensor:
         upper_C = torch.cat([torch.zeros(1).cuda(), upper], dim = 0)
-        sub_C = torch.cat([torch.unsqueeze(upper, 1), sub], dim = 1)
-        C = torch.cat([torch.unsqueeze(upper_C, 0), sub_C], dim = 0)
-        
-        ctx.save_for_backward(bases)
+        center_C = torch.einsum("b,bij->ij", coeff, basis)
+        C = torch.cat([torch.unsqueeze(upper, 1), center_C], dim = 1)
+        C = torch.cat([torch.unsqueeze(upper_C, 0), center_C], dim = 0)
+        ctx.save_for_backward(basis)
+
         return C
 
     @staticmethod
     def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
-        bases, = ctx.saved_tensors
+        basis, = ctx.saved_tensors
         grad_coeff = grad_upper = grad_bases = None
-
-        grad_coeff = torch.einsum("bij,ij->b", bases, grad_output[1:bases.shape[1]+1, 1:bases.shape[2]+1])
+        grad_coeff = torch.einsum("bij,ij->b", basis, grad_output[1:basis.shape[1]+1, 1:basis.shape[2]+1])
         grad_upper = grad_output[0, 1:]
 
         return grad_coeff, grad_upper, grad_bases
 
 
-class MixingFunc(Function):
+class GroupFunc(torch.autograd.Function):
+
+    @staticmethod
+    def forward(ctx, coeff: torch.Tensor, upper: torch.Tensor, group: Group) -> torch.Tensor:
+        upper_C = torch.cat([torch.zeros(1).cuda(), upper], dim = 0)
+        center_C = group._forward(coeff)
+        C = torch.cat([torch.unsqueeze(upper, 1), center_C], dim = 1)
+        C = torch.cat([torch.unsqueeze(upper_C, 0), center_C], dim = 0)
+        ctx.group = group
+
+        return C
+
+    @staticmethod
+    def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
+        group = ctx.group
+        grad_coeff = grad_upper = grad_group = None
+        grad_center = grad_output[1:, 1:]
+        grad_coeff = group._backward(grad_center)
+        grad_upper = grad_output[0, 1:]
+
+        return grad_coeff, grad_upper, grad_group
+
+
+class MixingFunc(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, C, z, is_input, max_iter, eps, prox_lam):
@@ -92,10 +112,10 @@ class MixingFunc(Function):
         return ctx.dC, ctx.dz, None, None, None, None
 
 
-class SymSATNet(nn.Module):
+class SymSATNet_basis(torch.nn.Module):
 
     def __init__(self, n, bases, max_iter=40, eps=1e-4, prox_lam=1e-2):
-        super(SymSATNet, self).__init__()
+        super(SymSATNet_basis, self).__init__()
         assert n == bases.shape[1] == bases.shape[2]
         self.bases = bases.cuda()
         self.coeff = torch.nn.Parameter(torch.FloatTensor(len(self.bases)).normal_())
@@ -104,62 +124,27 @@ class SymSATNet(nn.Module):
 
     def forward(self, z, is_input):
         is_input = torch.cat([torch.ones(z.size(0), 1).cuda(), is_input], dim = 1)
-        self.S = EquivariantLayer.apply(self.coeff, self.upper, self.bases)
+        self.C = self.S = BasisFunc.apply(self.coeff, self.upper, self.bases)
         z = torch.cat([torch.ones(z.size(0), 1).cuda(), z], dim = 1)
-        z = MixingFunc.apply(self.S, z, is_input, self.max_iter, self.eps, self.prox_lam)
+        z = MixingFunc.apply(self.C, z, is_input, self.max_iter, self.eps, self.prox_lam)
         
         return z[:, 1:]
 
 
-class AutoSymSATNet(nn.Module):
-    pass
+class SymSATNet_group(torch.nn.Module):
 
+    def __init__(self, n, group, max_iter=40, eps=1e-4, prox_lam=1e-2):
+        super(SymSATNet_group, self).__init__()
+        assert n == group.grammar.dim
+        self.group = group.cuda()
+        self.coeff = torch.nn.Parameter(torch.FloatTensor(group.grammar.n_basis()).normal_())
+        self.upper = torch.nn.Parameter(torch.FloatTensor(n).normal_())
+        self.max_iter, self.eps, self.prox_lam = max_iter, eps, prox_lam
 
-def main():
-    is_cuda = True
-
-    if is_cuda:
-        gpu_num = 0
-        torch.cuda.set_device(torch.device("cuda:{}".format(gpu_num)))
-        print('Using', torch.cuda.get_device_name(gpu_num))
-        print('Using', "cuda:{}".format(gpu_num))
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        torch.cuda.init()
-
-    n = 729
-    aux = 0
-    lr = 2e-2
-    num_epoch = 100
-    
-    model = SymSATNet(n, n+1, aux).cuda()
-
-    features = torch.load("sudoku/features.pt")
-    labels = torch.load("sudoku/labels.pt")
-
-    X = features[:100]
-    Y = labels[:100]
-    is_input = torch.sum(X, dim = -1)
-    is_input = torch.tile(torch.unsqueeze(is_input, -1), (1, 1, 1, X.shape[-1]))
-
-    X = X.reshape(X.shape[0], -1).cuda()
-    Y = Y.reshape(Y.shape[0], -1).cuda()
-    is_input = is_input.reshape(is_input.shape[0], -1).int().cuda()
-
-    optimizer = torch.optim.Adam(model.parameters(), lr = lr)
-    for epoch in range(num_epoch):
-        optimizer.zero_grad()
-
-        pred = model(X.contiguous(), is_input.contiguous())
-        loss = torch.nn.BCELoss()(pred, Y)
-        loss.backward()
-        optimizer.step()
+    def forward(self, z, is_input):
+        is_input = torch.cat([torch.ones(z.size(0), 1).cuda(), is_input], dim = 1)
+        self.C = self.S = GroupFunc.apply(self.coeff, self.upper, self.group)
+        z = torch.cat([torch.ones(z.size(0), 1).cuda(), z], dim = 1)
+        z = MixingFunc.apply(self.C, z, is_input, self.max_iter, self.eps, self.prox_lam)
         
-        if epoch % 10 == 0:
-            print("Epoch: {} Loss: {}".format(epoch, loss.item()))
-
-    # draw(model.S @ model.S.T)
-    # draw(model.C)
-
-if __name__ == "__main__":
-    main()
+        return z[:, 1:]

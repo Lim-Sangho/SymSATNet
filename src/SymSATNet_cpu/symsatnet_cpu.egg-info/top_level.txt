@@ -1,2 +1,0 @@
-symsatnet
-symsatnet_cpu
