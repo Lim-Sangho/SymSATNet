@@ -79,7 +79,7 @@ def run(epoch, model, group, optimizer, loader, logger, figlogger, save_dir, to_
     if figlogger is not None:
         figlogger.log([epoch, loss_total, err_total])
 
-    return err_total
+    return err_total, start.elapsed_time(end)
 
 
 def train(epoch, model, group, optimizer, loader, logger, figlogger, save_dir):
@@ -99,7 +99,7 @@ def validation(grammar: Grammar, construct_group: Callable[[Grammar], Group], S:
     new_S = new_group.proj_S(S)
     new_S.requires_grad = True
     valid_args[1].S = torch.nn.Parameter(new_S.cuda())
-    err = test(*valid_args)
+    err = test(*valid_args)[0]
     if err <= valid_err - eps:
         return grammar
 
@@ -128,7 +128,7 @@ def validation(grammar: Grammar, construct_group: Callable[[Grammar], Group], S:
         return Wreath(new_G1, new_G2)
 
 
-def trial(problem, model, trial_num, corrupt_num, gpu_num):
+def trial(problem, model, trial_num, corrupt_num, gpu_num, save):
     print("===> Trial: {}".format(trial_num))
     print("===> Problem: {}".format(problem))
     print("===> Model: {}".format(model))
@@ -136,7 +136,7 @@ def trial(problem, model, trial_num, corrupt_num, gpu_num):
 
     n = {"sudoku": 729, "cube": 324}[problem]
     data_dir = {"sudoku": "dataset/sudoku_10000", "cube": "dataset/cube_10000"}[problem]
-    save_dir = problem + f"_trial_{trial_num}_corrupt_{corrupt_num}/" + model
+    save_dir = ".results/" + problem + f"_trial_{trial_num}_corrupt_{corrupt_num}/" + model
 
     rank = {"SATNet-Plain": 1, "SATNet-300aux": 1, "SymSATNet": 1, "SymSATNet-Auto": 1}[model]
     aux = {"SATNet-Plain": 0, "SATNet-300aux": 300, "SymSATNet": 0, "SymSATNet-Auto": 0}[model]
@@ -153,9 +153,9 @@ def trial(problem, model, trial_num, corrupt_num, gpu_num):
         perm = torch.arange(n)
         proj_period = {"sudoku": 10, "cube": 20}[problem]
         proj_lr = {"sudoku": 1.0, "cube": 1.0}[problem]
-        rtol = {"sudoku": 5e-2, "cube": 1e-1}[problem]
+        rtol = {"sudoku": [0.05, 0.05, 0.055, 0.06], "cube": [0.1, 0.1, 0.11, 0.12]}[problem][corrupt_num]
         group = Group(grammar, perm, proj_period, proj_lr, rtol)
-        eps = 0.1 * corrupt_num
+        eps = [0.0, 0.0, 0.1, 0.2][corrupt_num]
     else:
         group = None
 
@@ -223,21 +223,22 @@ def trial(problem, model, trial_num, corrupt_num, gpu_num):
 
     optimizer = torch.optim.Adam(sat.parameters(), lr=lr)
 
-    print('===> Loading loggers')
+    if save:
+        print('===> Loading loggers')
 
-    if os.path.isdir(save_dir):
-        print(f"Directory already exists: {save_dir}")
-        return
-    os.makedirs(save_dir)
-    os.makedirs(save_dir + "/logs")
-    os.makedirs(save_dir + "/layers")
+        if os.path.isdir(save_dir):
+            print(f"Directory already exists: {save_dir}")
+            return
+        os.makedirs(save_dir)
+        os.makedirs(save_dir + "/logs")
+        os.makedirs(save_dir + "/layers")
 
-    train_logger = CSVLogger(os.path.join(save_dir, 'logs/train.csv'))
-    test_logger = CSVLogger(os.path.join(save_dir, 'logs/test.csv'))
-    valid_logger = CSVLogger(os.path.join(save_dir, 'logs/validation.csv'))
-    train_logger.log(['epoch', 'loss', 'err', 'time'])
-    test_logger.log(['epoch', 'loss', 'err', 'time'])
-    valid_logger.log(['epoch', 'group', 'time'])
+        train_logger = CSVLogger(os.path.join(save_dir, 'logs/train.csv'))
+        test_logger = CSVLogger(os.path.join(save_dir, 'logs/test.csv'))
+        valid_logger = CSVLogger(os.path.join(save_dir, 'logs/validation.csv'))
+        train_logger.log(['epoch', 'loss', 'err', 'time'])
+        test_logger.log(['epoch', 'loss', 'err', 'time'])
+        valid_logger.log(['epoch', 'group', 'time'])
 
     plt.ioff()
     fig, axes = plt.subplots(1,3, figsize=(10,4))
@@ -261,19 +262,20 @@ def trial(problem, model, trial_num, corrupt_num, gpu_num):
             # Find a useful subgroup with a validation step
             valid_loader = tqdm(DataLoader(valid_set, batch_size = validBatchSz))
             valid_args = [epoch, sat, group, None, valid_loader, None, None, save_dir]
-            valid_err = test(*valid_args)
+            valid_err = test(*valid_args)[0]
             grammar = validation(group.grammar, group.set_grammar, S, valid_err, valid_args, eps)
             group = group.set_grammar(grammar)
-            print(group)
-            print(group.grammar.n_basis())
 
-            basis = group.grammar.basis()
             if isinstance(group.grammar, Id) or group.grammar.n_basis() > 500:
                 sat = symsatnet.SymSATNet_group(n, group).cuda()
+                coeff = group._backward(C[1:, 1:].cuda(), 'coeff')
             else:
+                basis = group.grammar.basis().cuda()
+                basis = basis[:,group.perm][:,:,group.perm]
                 sat = symsatnet.SymSATNet_basis(n, basis).cuda()
-            upper = group.proj_orbit(C[0, 1:])
-            coeff = coordinates(C[1:, 1:], basis)
+                coeff = coordinates(C[1:, 1:].cuda(), basis)
+
+            upper = group.cuda().proj_orbit(C[0, 1:].cuda())
             sat.coeff = torch.nn.Parameter(coeff.cuda())
             sat.upper = torch.nn.Parameter(upper.cuda())
 
@@ -282,11 +284,10 @@ def trial(problem, model, trial_num, corrupt_num, gpu_num):
 
             print('S is Projected: {}'.format(group))
             print("Elapsed time: {}".format(start.elapsed_time(end)))
-            valid_logger.log([epoch, group, start.elasped_time(end)])
+            valid_logger.log([epoch, group, start.elapsed_time(end)])
 
             group.proj_period = float("inf")
             group.proj_lr = 0
-            group.auto = True
 
         train_loader = tqdm(DataLoader(train_set, batch_size = batchSz))
         train(epoch, sat, group, optimizer, train_loader, train_logger, figtrain_logger, save_dir)
@@ -295,7 +296,7 @@ def trial(problem, model, trial_num, corrupt_num, gpu_num):
         display(fig)
 
 
-def main(trial_num, problem_num, model_num, corrupt_num, gpu_num):
+def main(trial_num, problem_num, model_num, corrupt_num, gpu_num, save):
     problems = ["sudoku", "cube"]
     models = ["SATNet-Plain", "SATNet-300aux", "SymSATNet", "SymSATNet-Auto"]
 
@@ -305,49 +306,19 @@ def main(trial_num, problem_num, model_num, corrupt_num, gpu_num):
     parser.add_argument('--model', type=str, default=models[model_num])
     parser.add_argument('--corrupt_num', type=int, default=corrupt_num)
     parser.add_argument('--gpu_num', type=int, default=gpu_num)
+    parser.add_argument('--save', action="store_true", default=save)
     args = parser.parse_args(args = [])
     
     assert args.problem in problems
     assert args.model in models
 
-    trial(args.problem, args.model, args.trial_num, args.corrupt_num, args.gpu_num)
+    trial(args.problem, args.model, args.trial_num, args.corrupt_num, args.gpu_num, args.save)
 
 
 if __name__== '__main__':
     for problem_num in [1]:
         for trial_num in [1]:
             for model_num in [3]:
-                for corrupt_num in [0]:
-                    main(trial_num, problem_num, model_num, corrupt_num, gpu_num = 0)
-
-
-# if __name__ == '__main__':
-#     import time
-#     G = Kron(Sum(Wreath(Symm(2), Symm(3)), Sum(Wreath(Symm(3), Symm(8)), Kron(Symm(2), Id(10)))), Symm(6))
-#     # G = Cube()
-#     # G = Kron(Symm(30), Id(10))
-#     # G = Kron(Id(15), Id(15))
-#     C = torch.rand(G.dim, G.dim)
-
-#     print(G.n_basis())
-
-#     start = time.time()
-#     G.proj(C)
-#     print(time.time() - start)
-
-#     start = time.time()
-#     G._proj(C)
-#     print(time.time() - start)
-
-# if __name__ == '__main__':
-#     with open(".results/validation_results/cube_trial_2_corrupt_0/SymSATNet-Val/layers/20.pt", "rb") as f:
-#     # with open(".results/corrupt_results/sudoku_trial_2_corrupt_3/SymSATNet-Val/layers/20.pt", "rb") as f:
-#         C = torch.load(f).detach().cpu()[1:, 1:]
-#         C = C @ C.T
-
-#     draw(C)
-#     grammar, perm = symfind(C, 0.1)
-#     print(grammar)
-    
-#     draw(C[perm_inverse(perm)][:, perm_inverse(perm)])
+                for corrupt_num in [3]:
+                    main(trial_num, problem_num, model_num, corrupt_num, gpu_num = 0, save = False)
 # %%

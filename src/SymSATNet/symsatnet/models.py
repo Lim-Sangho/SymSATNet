@@ -11,7 +11,7 @@ class BasisFunc(torch.autograd.Function):
         upper_C = torch.cat([torch.zeros(1).cuda(), upper], dim = 0)
         center_C = torch.einsum("b,bij->ij", coeff, basis)
         C = torch.cat([torch.unsqueeze(upper, 1), center_C], dim = 1)
-        C = torch.cat([torch.unsqueeze(upper_C, 0), center_C], dim = 0)
+        C = torch.cat([torch.unsqueeze(upper_C, 0), C], dim = 0)
         ctx.save_for_backward(basis)
 
         return C
@@ -19,11 +19,11 @@ class BasisFunc(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
         basis, = ctx.saved_tensors
-        grad_coeff = grad_upper = grad_bases = None
+        grad_coeff = grad_upper = grad_basis = None
         grad_coeff = torch.einsum("bij,ij->b", basis, grad_output[1:basis.shape[1]+1, 1:basis.shape[2]+1])
         grad_upper = grad_output[0, 1:]
 
-        return grad_coeff, grad_upper, grad_bases
+        return grad_coeff, grad_upper, grad_basis
 
 
 class GroupFunc(torch.autograd.Function):
@@ -33,7 +33,7 @@ class GroupFunc(torch.autograd.Function):
         upper_C = torch.cat([torch.zeros(1).cuda(), upper], dim = 0)
         center_C = group._forward(coeff)
         C = torch.cat([torch.unsqueeze(upper, 1), center_C], dim = 1)
-        C = torch.cat([torch.unsqueeze(upper_C, 0), center_C], dim = 0)
+        C = torch.cat([torch.unsqueeze(upper_C, 0), C], dim = 0)
         ctx.group = group
 
         return C
@@ -114,17 +114,17 @@ class MixingFunc(torch.autograd.Function):
 
 class SymSATNet_basis(torch.nn.Module):
 
-    def __init__(self, n, bases, max_iter=40, eps=1e-4, prox_lam=1e-2):
+    def __init__(self, n, basis, max_iter=40, eps=1e-4, prox_lam=1e-2):
         super(SymSATNet_basis, self).__init__()
-        assert n == bases.shape[1] == bases.shape[2]
-        self.bases = bases.cuda()
-        self.coeff = torch.nn.Parameter(torch.FloatTensor(len(self.bases)).normal_())
+        assert n == basis.shape[1] == basis.shape[2]
+        self.basis = basis.cuda()
+        self.coeff = torch.nn.Parameter(torch.FloatTensor(len(self.basis)).normal_())
         self.upper = torch.nn.Parameter(torch.FloatTensor(n).normal_())
         self.max_iter, self.eps, self.prox_lam = max_iter, eps, prox_lam
 
     def forward(self, z, is_input):
         is_input = torch.cat([torch.ones(z.size(0), 1).cuda(), is_input], dim = 1)
-        self.C = self.S = BasisFunc.apply(self.coeff, self.upper, self.bases)
+        self.C = self.S = BasisFunc.apply(self.coeff, self.upper, self.basis)
         z = torch.cat([torch.ones(z.size(0), 1).cuda(), z], dim = 1)
         z = MixingFunc.apply(self.C, z, is_input, self.max_iter, self.eps, self.prox_lam)
         

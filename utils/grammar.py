@@ -88,7 +88,7 @@ class Id(Grammar):
         C = coeff.reshape(self.dim, self.dim, *coeff.shape[1:])
         return C
 
-    def _backward(self, grad_C: torch.Tensor) -> torch.Tensor:
+    def _backward(self, grad_C: torch.Tensor, option: Optional[str] = 'grad') -> torch.Tensor:
         grad_coeff = grad_C.flatten(0, 1)
         return grad_coeff
 
@@ -141,8 +141,11 @@ class Cyclic(Grammar):
         C = torch.einsum("i...,ijk->jk...", coeff, self.basis())
         return C
 
-    def _backward(self, grad_C: torch.Tensor) -> torch.Tensor:
-        grad_coeff = torch.einsum("ijk,jk...->i...", self.basis(), grad_C)
+    def _backward(self, grad_C: torch.Tensor, option: Optional[str] = 'grad') -> torch.Tensor:
+        if option == 'grad':
+            grad_coeff = torch.einsum("ijk,jk...->i...", self.basis(), grad_C)
+        elif option == 'coeff':
+            grad_coeff = coordinates(grad_C, self.basis())
         return grad_coeff
 
     def _coeff_diag_index(self) -> torch.Tensor:
@@ -195,8 +198,11 @@ class Symm(Grammar):
         C = torch.einsum("i...,ijk->jk...", coeff, self.basis())
         return C
 
-    def _backward(self, grad_C: torch.Tensor) -> torch.Tensor:
-        grad_coeff = torch.einsum("ijk,jk...->i...", self.basis(), grad_C)
+    def _backward(self, grad_C: torch.Tensor, option: Optional[str] = 'grad') -> torch.Tensor:
+        if option == 'grad':
+            grad_coeff = torch.einsum("ijk,jk...->i...", self.basis(), grad_C)
+        elif option == 'coeff':
+            grad_coeff = coordinates(grad_C, self.basis())
         return grad_coeff
 
     def _coeff_diag_index(self) -> torch.Tensor:
@@ -254,8 +260,11 @@ class Gen(Grammar):
         C = torch.einsum("i...,ijk->jk...", coeff, self.basis())
         return C
 
-    def _backward(self, grad_C: torch.Tensor) -> torch.Tensor:
-        grad_coeff = torch.einsum("ijk,jk...->i...", self.basis(), grad_C)
+    def _backward(self, grad_C: torch.Tensor, option: Optional[str] = 'grad') -> torch.Tensor:
+        if option == 'grad':
+            grad_coeff = torch.einsum("ijk,jk...->i...", self.basis(), grad_C)
+        elif option == 'coeff':
+            grad_coeff = coordinates(grad_C, self.basis())
         return grad_coeff
 
     def _coeff_diag_index(self) -> torch.Tensor:
@@ -336,6 +345,8 @@ class Sum(Grammar):
         o2 = self.G2.n_orbits()
 
         C = torch.zeros(self.dim, self.dim, *coeff.shape[1:])
+        if coeff.is_cuda: C = C.cuda()
+        
         C[:dim_1, :dim_1] = self.G1._forward(coeff[:b1])
         C[dim_1:, dim_1:] = self.G2._forward(coeff[b1:b1+b2])
         C[:dim_1, dim_1:] = forward_orbit(coeff[b1+b2:b1+b2+(o1*o2)], self.G1, self.G2)
@@ -343,12 +354,12 @@ class Sum(Grammar):
 
         return C
 
-    def _backward(self, grad_C: torch.Tensor) -> torch.Tensor:
+    def _backward(self, grad_C: torch.Tensor, option: Optional[str] = 'grad') -> torch.Tensor:
         dim_1 = self.G1.dim
-        grad_1 = self.G1._backward(grad_C[:dim_1, :dim_1])
-        grad_2 = self.G2._backward(grad_C[dim_1:, dim_1:])
-        grad_3 = backward_orbit(grad_C[:dim_1, dim_1:], self.G1, self.G2)
-        grad_4 = backward_orbit(grad_C[dim_1:, :dim_1], self.G2, self.G1)
+        grad_1 = self.G1._backward(grad_C[:dim_1, :dim_1], option)
+        grad_2 = self.G2._backward(grad_C[dim_1:, dim_1:], option)
+        grad_3 = backward_orbit(grad_C[:dim_1, dim_1:], self.G1, self.G2, option)
+        grad_4 = backward_orbit(grad_C[dim_1:, :dim_1], self.G2, self.G1, option)
 
         return torch.cat([grad_1, grad_2, grad_3, grad_4])
 
@@ -442,12 +453,12 @@ class Kron(Grammar):
         C = self.G1._forward(coeff_1).transpose(1, 2)
         return C.reshape(self.dim, self.dim, *coeff.shape[1:])
 
-    def _backward(self, grad_C: torch.Tensor) -> torch.Tensor:
+    def _backward(self, grad_C: torch.Tensor, option: Optional[str] = 'grad') -> torch.Tensor:
         dim_1 = self.G1.dim
         dim_2 = self.G2.dim
         C_hat = torch.stack([torch.stack([grad_C[i*dim_2:(i+1)*dim_2, j*dim_2:(j+1)*dim_2] for j in range(dim_1)]) for i in range(dim_1)])
-        C_proj_1 = self.G1._backward(C_hat).transpose(0, 1).transpose(1, 2)
-        C_proj_2 = self.G2._backward(C_proj_1).transpose(0, 1)
+        C_proj_1 = self.G1._backward(C_hat, option).transpose(0, 1).transpose(1, 2)
+        C_proj_2 = self.G2._backward(C_proj_1, option).transpose(0, 1)
 
         return C_proj_2.flatten(0, 1)
 
@@ -541,19 +552,19 @@ class Wreath(Grammar):
         C_hat = (diag_embed + off_diag).transpose(0, 2).transpose(1, 3).transpose(1, 2)
         return C_hat.reshape(self.dim, self.dim, *C_hat.shape[4:])
 
-    def _backward(self, grad_C: torch.Tensor) -> torch.Tensor:
+    def _backward(self, grad_C: torch.Tensor, option: Optional[str] = 'grad') -> torch.Tensor:
         dim_1 = self.G1.dim
         dim_2 = self.G2.dim
         b1 = self.G1.n_basis()
         c2 = self.G2._coeff_diag_index()
         C_hat = torch.stack([torch.stack([grad_C[i*dim_1:(i+1)*dim_1, j*dim_1:(j+1)*dim_1] for j in range(dim_2)]) for i in range(dim_2)]).transpose(0, 2).transpose(1, 3)
 
-        diag = self.G1._backward(torch.einsum("ijkk...->ijk...", C_hat)).transpose(0, 1)
-        diag = backward_orbit(diag, self.G2, Id(dim = b1))
+        diag = self.G1._backward(torch.einsum("ijkk...->ijk...", C_hat), option).transpose(0, 1)
+        diag = backward_orbit(diag, self.G2, Id(dim = b1), option)
 
         off_diag = C_hat - torch.diag_embed(torch.diagonal(C_hat, dim1 = 2, dim2 = 3), dim1 = 2, dim2 = 3)
-        off_diag = backward_orbit(off_diag, self.G1, self.G1).transpose(0, 1).transpose(1, 2)
-        off_diag = self.G2._backward(off_diag)
+        off_diag = backward_orbit(off_diag, self.G1, self.G1, option).transpose(0, 1).transpose(1, 2)
+        off_diag = self.G2._backward(off_diag, option)
         off_diag = torch.stack([off_diag[i] for i in range(len(off_diag)) if i not in c2]).flatten(0, 1)
 
         return torch.cat([diag, off_diag])
@@ -674,7 +685,7 @@ def forward_orbit(coeff: torch.Tensor, G1: Grammar, G2: Grammar) -> torch.Tensor
     return C
 
 
-def backward_orbit(grad_C: torch.Tensor, G1: Grammar, G2: Grammar) -> torch.Tensor:
+def backward_orbit(grad_C: torch.Tensor, G1: Grammar, G2: Grammar, option: Optional[str] = 'grad') -> torch.Tensor:
     """
     Compute the gradient with respect to the off-diagonals in $G1 \oplus G2$.
     """
@@ -682,12 +693,18 @@ def backward_orbit(grad_C: torch.Tensor, G1: Grammar, G2: Grammar) -> torch.Tens
 
     if not isinstance(G1, Id):
         orbit_1 = G1.orbits()
-        grad_coeff = torch.einsum("ij,j...->i...", orbit_1, grad_coeff)
+        if option == 'grad':
+            grad_coeff = torch.einsum("ij,j...->i...", orbit_1, grad_coeff)
+        elif option == 'coeff':
+            grad_coeff = coordinates(grad_coeff, orbit_1)
     grad_coeff = grad_coeff.transpose(0, 1)
 
     if not isinstance(G2, Id):
         orbit_2 = G2.orbits()
-        grad_coeff = torch.einsum("ij,j...->i...", orbit_2, grad_coeff)
+        if option == 'grad':
+            grad_coeff = torch.einsum("ij,j...->i...", orbit_2, grad_coeff)
+        elif option == 'coeff':
+            grad_coeff = coordinates(grad_coeff, orbit_2)
     grad_coeff = grad_coeff.transpose(0, 1)
 
     return grad_coeff.flatten(0, 1)
