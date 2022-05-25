@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 
-def prodfind(C: torch.Tensor, rtol: float) -> list[tuple[Grammar, torch.Tensor]]:
+def prodfind(C: torch.Tensor, rtol: float, max_err: float) -> list[tuple[Grammar, torch.Tensor]]:
     """
     Split the matrix into a sum of Kronecker products, i.e., $C = \sum_i {A_i \otimes B_i}$.
     """
@@ -50,16 +50,16 @@ def prodfind(C: torch.Tensor, rtol: float) -> list[tuple[Grammar, torch.Tensor]]
                 
                 splits.append((A, B))
 
-    return [wreathfind_in_prodfind(A, B, rtol) for A, B in splits]
+    return [wreathfind_in_prodfind(A, B, rtol, max_err) for A, B in splits]
 
 
-def wreathfind_in_prodfind(A: torch.Tensor, B: torch.Tensor, rtol: float) -> tuple[Grammar, torch.Tensor]:
+def wreathfind_in_prodfind(A: torch.Tensor, B: torch.Tensor, rtol: float, max_err: float) -> tuple[Grammar, torch.Tensor]:
     """
     Check whether the split of Kronecker product is a wreath product.
     """
     if not len(A) == len(B) == 2:
-        G_1, perm_1 = symfind(A[0], rtol)
-        G_2, perm_2 = symfind(B[0], rtol)
+        G_1, perm_1 = symfind(A[0], rtol, max_err)
+        G_2, perm_2 = symfind(B[0], rtol, max_err)
         return Kron(G_1, G_2), perm_kron(perm_1, perm_2)
     
     eye = torch.eye(A.shape[1])
@@ -73,8 +73,8 @@ def wreathfind_in_prodfind(A: torch.Tensor, B: torch.Tensor, rtol: float) -> tup
     # print(atol)
 
     if torch.abs(torch.dot(coeff_A, coeff_B)) > atol:
-        G_1, perm_1 = symfind(A[0], rtol)
-        G_2, perm_2 = symfind(B[0], rtol)
+        G_1, perm_1 = symfind(A[0], rtol, max_err)
+        G_2, perm_2 = symfind(B[0], rtol, max_err)
         return Kron(G_1, G_2), perm_kron(perm_1, perm_2)
 
     else:
@@ -82,12 +82,12 @@ def wreathfind_in_prodfind(A: torch.Tensor, B: torch.Tensor, rtol: float) -> tup
         beta = coeff_A[1]
         A = torch.stack([A[0] / alpha, eye])
         B = torch.stack([ones, B[1] / beta])
-        G_1, perm_1 = symfind(B[1], rtol)
-        G_2, perm_2 = symfind(A[0], rtol)
+        G_1, perm_1 = symfind(B[1], rtol, max_err)
+        G_2, perm_2 = symfind(A[0], rtol, max_err)
         return Wreath(G_1, G_2), perm_wreath(perm_1, perm_2)
 
 
-def sumfind(C: torch.Tensor, rtol: float) -> tuple[Grammar, torch.Tensor]:
+def sumfind(C: torch.Tensor, rtol: float, max_err: float) -> tuple[Grammar, torch.Tensor]:
     """
     Split the matrix into a direct sum, i.e., $C = \bigoplus_i B_i$.
     """
@@ -116,11 +116,12 @@ def sumfind(C: torch.Tensor, rtol: float) -> tuple[Grammar, torch.Tensor]:
     # print(blocks)
     # print(super_blocks)
 
-    return wreathfind_in_sumfind(C, perm, blocks, super_blocks, rtol)
+    return wreathfind_in_sumfind(C, perm, blocks, super_blocks, rtol, max_err)
 
 
 def wreathfind_in_sumfind(C: torch.Tensor, perm: torch.Tensor,
-                 blocks: torch.Tensor, super_blocks: torch.Tensor, rtol: float) -> tuple[Grammar, torch.Tensor]:
+                 blocks: torch.Tensor, super_blocks: torch.Tensor,
+                 rtol: float, max_err: float) -> tuple[Grammar, torch.Tensor]:
     N = C.shape[0]
     summands = []
     perms = []
@@ -151,7 +152,7 @@ def wreathfind_in_sumfind(C: torch.Tensor, perm: torch.Tensor,
         n = len(B_i) // m
 
         if m == 1:
-            G_i, perm_i = symfind(B_i, rtol)
+            G_i, perm_i = symfind(B_i, rtol, max_err)
             summands.append(G_i)
             perms.append(perm_i)
 
@@ -174,8 +175,8 @@ def wreathfind_in_sumfind(C: torch.Tensor, perm: torch.Tensor,
                 for j in range(m):
                     B[i, j] = torch.mean(off_diag[n*i:n*(i+1), n*j:n*(j+1)])
 
-            G_i1, perm_i1 = symfind(A, rtol)
-            G_i2, perm_i2 = symfind(B, rtol)
+            G_i1, perm_i1 = symfind(A, rtol, max_err)
+            G_i2, perm_i2 = symfind(B, rtol, max_err)
             summands.append(Wreath(G_i1, G_i2))
             perms.append(perm_wreath(perm_i1, perm_i2))
 
@@ -344,7 +345,7 @@ def perm_block(A: torch.Tensor, B: torch.Tensor) -> tuple[torch.Tensor]:
     return A, perm
 
 
-def max_group(C: torch.Tensor, groups: list[tuple[Grammar, torch.Tensor]], rtol: float) -> tuple[Grammar, torch.Tensor]:
+def max_group(C: torch.Tensor, groups: list[tuple[Grammar, torch.Tensor]], max_err: float) -> tuple[Grammar, torch.Tensor]:
     """
     Find the maximum group which contains the minimum number of basis elements among the groups.
     """
@@ -363,7 +364,7 @@ def max_group(C: torch.Tensor, groups: list[tuple[Grammar, torch.Tensor]], rtol:
         print()
 
         errors = torch.Tensor([Group(grammar, perm).proj_error(C) for grammar, perm in groups])
-        error_filter = errors <= (rtol * 5)
+        error_filter = errors <= max_err
         
         if not torch.any(error_filter):
             return Id(dim = N), torch.arange(0, N)
@@ -378,7 +379,7 @@ def max_group(C: torch.Tensor, groups: list[tuple[Grammar, torch.Tensor]], rtol:
         return groups[errors.argmin()]
 
 
-def symfind(C: torch.Tensor, rtol: float) -> tuple[Grammar, torch.Tensor]:
+def symfind(C: torch.Tensor, rtol: float, max_err: float) -> tuple[Grammar, torch.Tensor]:
     """
     Find the group symmetry of the matrix C.
     """
@@ -396,7 +397,7 @@ def symfind(C: torch.Tensor, rtol: float) -> tuple[Grammar, torch.Tensor]:
         groups.append((Zn, torch.arange(0, N)))
         
     if N < 70:
-        groups.append(sumfind(C, rtol))
-    groups.extend(prodfind(C, rtol))
+        groups.append(sumfind(C, rtol, max_err))
+    groups.extend(prodfind(C, rtol, max_err))
 
-    return max_group(C, groups, rtol)
+    return max_group(C, groups, max_err)

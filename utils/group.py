@@ -9,12 +9,15 @@ class Group(object):
     Class of permutation groups defined by group(G, \sigma).
     """
 
-    def __init__(self, grammar: Grammar, perm: torch.Tensor, proj_period: Optional[Union[int, float]] = float('inf'), proj_lr: Optional[float] = 0.0, rtol: Optional[float] = None):
+    def __init__(self, grammar: Grammar, perm: torch.Tensor,
+                 proj_period: Union[int, float] = float('inf'), proj_lr: float = 0.0,
+                 rtol: float = float('inf'), max_err: float = float('inf')):
         self.grammar = grammar
         self.perm = perm
         self.proj_period = proj_period
         self.proj_lr = proj_lr
         self.rtol = rtol
+        self.max_err = max_err
 
     def __str__(self):
         return self.grammar.__str__()

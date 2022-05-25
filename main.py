@@ -148,8 +148,9 @@ def main(trial_num = 1, problem = "sudoku", model = "SymSATNet", corrupt_num = 0
         perm = torch.arange(n)
         proj_period = {"sudoku": 10, "cube": 20}[problem]
         proj_lr = {"sudoku": 1.0, "cube": 1.0}[problem]
-        rtol = {"sudoku": [0.05, 0.05, 0.055, 0.06], "cube": [0.1, 0.1, 0.11, 0.12]}[problem][corrupt_num]
-        group = Group(grammar, perm, proj_period, proj_lr, rtol)
+        rtol = {"sudoku": 0.05, "cube": 0.1}[problem]
+        max_err = [0.4, 0.5, 0.6, 0.6][corrupt_num]
+        group = Group(grammar, perm, proj_period, proj_lr, rtol, max_err)
         eps = [0.0, 0.0, 0.1, 0.2][corrupt_num]
     else:
         group = None
@@ -257,7 +258,7 @@ def main(trial_num = 1, problem = "sudoku", model = "SymSATNet", corrupt_num = 0
             # Find a group with an automatic detection algorithm
             S = sat.S.detach().cpu()
             C = S @ S.T
-            grammar, perm = symfind(C[1:, 1:], rtol = group.rtol)
+            grammar, perm = symfind(C[1:, 1:], rtol = group.rtol, max_err = group.max_err)
             group = group.set_grammar(grammar).set_perm(perm)
 
             # Find a useful subgroup with a validation step
