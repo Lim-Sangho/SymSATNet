@@ -358,13 +358,13 @@ def max_group(C: torch.Tensor, groups: list[tuple[Grammar, torch.Tensor]], max_e
         return groups[0]
 
     else:
-        print(*[grammar for grammar, perm in groups])
-        print(*[grammar.n_basis() for grammar, perm in groups])
-        print(*[Group(grammar, perm).proj_error(C) for grammar, perm in groups])
-        print()
+        # print(*[grammar for grammar, perm in groups])
+        # print(*[grammar.n_basis() for grammar, perm in groups])
+        # print(*[Group(grammar, perm).proj_error(C) for grammar, perm in groups])
+        # print()
 
         errors = torch.Tensor([Group(grammar, perm).proj_error(C) for grammar, perm in groups])
-        error_filter = errors <= max_err
+        error_filter = (errors <= max_err)
         
         if not torch.any(error_filter):
             return Id(dim = N), torch.arange(0, N)

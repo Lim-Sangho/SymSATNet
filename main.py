@@ -88,7 +88,7 @@ def test(epoch, model, group, optimizer, loader, logger, figlogger, timelogger, 
 
 @torch.no_grad()
 def validation(grammar: Grammar, construct_group: Callable[[Grammar], Group], S: torch.Tensor, valid_err: float, valid_args: list, eps: float) -> Grammar:
-    print(grammar)
+    # print(grammar)
 
     new_group = construct_group(grammar)
     new_S = new_group.proj_S(S)
@@ -314,4 +314,11 @@ if __name__ == "__main__":
     assert args.model in ["SATNet-Plain", "SATNet-300aux", "SymSATNet", "SymSATNet-Auto"]
 
     main(args.trial_num, args.problem, args.model, args.corrupt_num, args.gpu_num, args.save)
+    
+
+# with open(".results/validation_results/cube_trial_1_corrupt_0/SymSATNet-Val/layers/20.pt", "rb") as f:
+#     S = torch.load(f).detach().cpu()
+#     C = (S @ S.T)[1:, 1:]
+
+# print(symfind(C, 0.1, 0.4)[0])
 # %%
