@@ -9,25 +9,21 @@ We recommend creating a new conda environment and installing those packages on t
     conda activate satnet
     conda install pytorch==1.8.0 torchvision==0.9.0 torchaudio==0.8.0 cudatoolkit=11.1 -c pytorch -c conda-forge
 
-Now, we can install SATNet:
+Now, we can install SATNet,
 
     git clone https://github.com/locuslab/SATNet ./src/SATNet
-    python src/SATNet/setup.py install
-
-or via pip:
-
-    pip install satnet
+    cd src/SATNet; python setup.py install; cd ../..
 
 and install SymSATNet by the following.
 
-    python src/SymSATNet/setup.py install
+    cd src/SymSATNet; python setup.py install; cd ../..
     
 SATNet and SymSATNet also require the following packages.
 
-    conda install -c pytorch tqdm
-    conda install -c anaconda ipython
-    conda install -c anaconda scikit-learn
     conda install -c conda-forge matplotlib
+    conda install -c conda-forge packaging
+    conda install -c anaconda ipython
+    conda install -c pytorch tqdm
 
 
 ## 2. Related Work
