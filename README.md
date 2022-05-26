@@ -100,4 +100,4 @@ Also, the following two plots show the test accuracy of each model in noisy Sudo
 |:--:|:--:|
 | Robustness in noisy Sudoku | Robustness in noisy Rubik's cube |
 
-See main.py and experiment.ipynb for more information.
+See [main.py](main.py) and [experiment.ipynb](experiment.ipynb) for more information.
