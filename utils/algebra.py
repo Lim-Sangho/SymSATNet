@@ -20,9 +20,6 @@ def coordinates(vector: torch.Tensor, basis: torch.Tensor) -> torch.Tensor:
     basis_inner = torch.einsum("a"+summand_letters+"->a", basis * basis)
     vector_inner = torch.einsum("a"+summand_letters+","+summand_letters+"...->a...", basis, vector)
     return torch.einsum("a,a...->a...", 1 / basis_inner, vector_inner)
-    # basis_inner = torch.einsum("i...->i", basis * basis)
-    # vector_inner = torch.einsum("i...->i", basis * vector)
-    # return vector_inner / basis_inner
 
 
 def gram_schmidt(vectors: torch.Tensor) -> torch.Tensor:

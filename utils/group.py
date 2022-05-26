@@ -98,7 +98,7 @@ class Group(object):
         C = self.grammar._forward(coeff)
         return C[self.perm][:, self.perm]
 
-    def _backward(self, grad_C: torch.Tensor, option: Optional[str] = 'grad') -> torch.Tensor:
+    def _backward(self, grad_C: torch.Tensor, option: str = 'grad') -> torch.Tensor:
         inverse_perm = perm_inverse(self.perm)
         C_perm = grad_C[inverse_perm][:, inverse_perm]
         return self.grammar._backward(C_perm, option)

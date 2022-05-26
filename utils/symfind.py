@@ -31,15 +31,6 @@ def prodfind(C: torch.Tensor, rtol: float, max_err: float) -> list[tuple[Grammar
             cut = torch.where(S > (S[0] / 5))[0]
             rank = max(cut, default = 0) + 1
 
-            # print(m)
-            # print(rank)
-            # print(S)
-            # print(grad)
-            # print(S[0] / 5)
-            # plt.plot(S)
-            # plt.show()
-            # print()
-
             if rank <= 6:
                 S = S[:rank]
                 A = U[:,:rank]
@@ -48,11 +39,6 @@ def prodfind(C: torch.Tensor, rtol: float, max_err: float) -> list[tuple[Grammar
                 B = B * torch.sqrt(S)
                 A = A.T.reshape(-1, m, m).transpose(1, 2)
                 B = B.T.reshape(-1, n, n).transpose(1, 2)
-
-                # if C_hat.shape == (16, 16):
-                #     draw(C_hat, dpi = 700, save = "hat.png")
-                #     draw(A[0], dpi = 700, save = "A.png")
-                #     draw(B[0], dpi = 700, save = "B.png")
                 
                 splits.append((A, B))
 
@@ -73,10 +59,6 @@ def wreathfind_in_prodfind(A: torch.Tensor, B: torch.Tensor, rtol: float, max_er
     coeff_A = coordinates(eye, A)
     coeff_B = coordinates(ones, B)
     atol = rtol * 0.4
-
-    # print(coeff_A * coeff_B)
-    # print(torch.abs(torch.sum(coeff_A * coeff_B)))
-    # print(atol)
 
     if torch.abs(torch.dot(coeff_A, coeff_B)) > atol:
         G_1, perm_1 = symfind(A[0], rtol, max_err)
@@ -117,10 +99,6 @@ def sumfind(C: torch.Tensor, rtol: float, max_err: float) -> tuple[Grammar, torc
 
     C, perm, blocks = sort_blocks(C, perm, blocks)
     C, perm, blocks, super_blocks = merge_blocks(C, perm, blocks, rtol)
-
-    # draw(C)
-    # print(blocks)
-    # print(super_blocks)
 
     return wreathfind_in_sumfind(C, perm, blocks, super_blocks, rtol, max_err)
 
@@ -205,8 +183,6 @@ def find_blocks(C: torch.Tensor, rtol: float) -> Optional[tuple[torch.Tensor]]:
     argsort = None
     
     while i < N-1:
-        # if len(C) == 15:
-            # draw(C, dpi = 700, save = f"{i}.png")
 
         if block == i:
             blocks.add(block)
@@ -247,12 +223,6 @@ def find_blocks(C: torch.Tensor, rtol: float) -> Optional[tuple[torch.Tensor]]:
 
             distances_chunk = torch.max(torch.abs(chunks - chunk_i), dim = 1)[0]
 
-            # draw(C)
-            # draw(torch.cat([chunk_i.reshape(1, -1), chunks], dim = 0))
-            # print(distances_chunk)
-            # print(atol)
-            # print(torch.min(distances_chunk) <= atol)
-
             if torch.min(distances_chunk) <= atol * 0.3:
                 index = torch.argmin(distances_chunk).item() + (i+1)
                 C = swap(C, i+1, index)
@@ -265,11 +235,6 @@ def find_blocks(C: torch.Tensor, rtol: float) -> Optional[tuple[torch.Tensor]]:
                 off_diag = torch.cat([off_diag_row, off_diag_col.T], dim = 1)
                 distance_off_diag = torch.max(torch.abs(off_diag - off_diag[0]))
 
-                # draw(C)
-                # draw(off_diag)
-                # print(distance_off_diag)
-                # print(atol)
-        
                 if distance_off_diag <= atol * 0.3:
                     i += 1
                     j = 0
@@ -324,10 +289,7 @@ def merge_blocks(C: torch.Tensor, perm: torch.Tensor, blocks: torch.Tensor, rtol
         end_i = blocks[i+1] if i < len(blocks) - 1 else len(C)
         B_prev = C[start_prev:start_i, start_prev:start_i]
         B_i = C[start_i:end_i, start_i:end_i]
-        # draw(B_prev)
-        # draw(B_i)
-        # print(set_distance(B_prev, B_i))
-        # print(atol)
+
         if len(B_prev) == len(B_i) and set_distance(B_prev, B_i) <= atol:
             B_i, perm_i = perm_block(B_i, B_prev)
             sub_perm = torch.cat([torch.arange(0, start_i), perm_i + start_i, torch.arange(end_i, len(C))])
@@ -366,11 +328,6 @@ def max_group(C: torch.Tensor, groups: list[tuple[Grammar, torch.Tensor]], max_e
         return groups[0]
 
     else:
-        # print(*[grammar for grammar, perm in groups])
-        # print(*[grammar.n_basis() for grammar, perm in groups])
-        # print(*[Group(grammar, perm).proj_error(C) for grammar, perm in groups])
-        # print()
-
         errors = torch.Tensor([Group(grammar, perm).proj_error(C) for grammar, perm in groups])
         error_filter = (errors <= max_err)
         
