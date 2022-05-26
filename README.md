@@ -57,12 +57,13 @@ SymFind is an automatic symmetry-detection algorithm, which receives a matrix $M
 |   |   |
 |---|---|
 | ![sumfind](img/sumfind.gif) | SumFind clusters entries in the input matrix as blocks since block-shaped clusters commonly arise in matrices equivariant with respect to a direct sum of groups. |
-|   |   |
+
 
 |   |
 |---|
-| ![prodfind](img/prodfind.png) ProdFind exploits a typical pattern of Kronecker product of matrices, and detects the presence of the pattern by applying SVD. |
-|   |
+| ![prodfind](img/prodfind.png) |
+| ProdFind exploits a typical pattern of Kronecker product of matrices, and detects the presence of the pattern by applying SVD. |
+
 
 
 ## 5. Tasks
