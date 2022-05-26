@@ -45,12 +45,12 @@ Consequently, SymSATNet can learn with significantly reduced number of parameter
 ## 4. SymFind
 SymFind is an automatic symmetry-detection algorithm, which receives a matrix $M$ as an input and returns a permutation group $G$ which closely approximates the symmetries in $M$: $\forall g \in G, \, gM \approx Mg$. The group symmetries discovered by SymFind can be used to train SymSATNet. Symfind can find the permutation groups defined by a manually designed grammar that covers a suitable range of practical permutation groups. SymFind calls two subroutine algorithms, SumFind and ProdFind, which may also recursively call SymFind to find the symmetries for smaller parts in M. 
 
-| <img src="img/sudoku_symfind.png" width="800px" height="300px" title="sudoku_symfind" alt="sudoku_symfind"></img><br/> |
+| <img src="img/sudoku_symmetry.png" width="800px" height="380px" title="sudoku_symmetry" alt="sudoku_symmetry"></img><br/> |
 |:--:|
 | Symmetry-detection in Sudoku |
 
 
-| <img src="img/cube_symfind.png" width="800px" height="300px" title="cube_symfind" alt="cube_symfind"></img> |
+| <img src="img/cube_symmetry.png" width="800px" height="380px" title="cube_symmetry" alt="cube_symmetry"></img> |
 |:--:|
 | Symmetry-detection in Rubik's cube |
 
