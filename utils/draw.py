@@ -1,4 +1,4 @@
-# %%
+
 from typing import Optional, Union
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,4 +17,3 @@ def draw(D: Union[torch.Tensor, np.ndarray], color: str = 'jet',
     else:
         plt.colorbar()
     plt.show()
-# %%

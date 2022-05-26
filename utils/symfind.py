@@ -5,7 +5,6 @@ from itertools import compress
 from utils.algebra import *
 from utils.grammar import *
 from utils.group import *
-from utils.draw import draw
 import numpy as np
 import torch
 

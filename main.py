@@ -1,4 +1,3 @@
-# %%
 from __future__ import annotations
 import os
 import argparse
@@ -307,4 +306,3 @@ if __name__ == "__main__":
     assert args.model in ["SATNet-Plain", "SATNet-300aux", "SymSATNet", "SymSATNet-Auto"]
 
     main(args.trial_num, args.problem, args.model, args.corrupt_num, args.gpu_num, args.save)
-# %%
