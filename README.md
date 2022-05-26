@@ -45,12 +45,12 @@ Consequently, SymSATNet can learn with significantly reduced number of parameter
 
 | ![sudoku_symmetry](img/sudoku_symmetry.png) |
 |:--:|
-| Symmetry-detection in Sudoku |
+| Parameters having symmetries in Sudoku |
 
 
 | ![cube_symmetry](img/cube_symmetry.png) |
 |:--:|
-| Symmetry-detection in Rubik's cube |
+| Parameters having symmetries in Rubik's cube |
 
 
 ## 4. SymFind
