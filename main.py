@@ -151,7 +151,7 @@ def main(trial_num = 1, problem = "sudoku", model = "SymSATNet", corrupt_num = 0
         rtol = {"sudoku": 0.05, "cube": 0.1}[problem]
         max_err = [0.4, 0.5, 0.6, 0.6][corrupt_num]
         group = Group(grammar, perm, proj_period, proj_lr, rtol, max_err)
-        eps = [0.0, 0.0, 0.1, 0.2][corrupt_num]
+        eps = [0.05, 0.05, 0.1, 0.2][corrupt_num]
     else:
         group = None
 
@@ -314,7 +314,7 @@ if __name__ == "__main__":
     assert args.model in ["SATNet-Plain", "SATNet-300aux", "SymSATNet", "SymSATNet-Auto"]
 
     main(args.trial_num, args.problem, args.model, args.corrupt_num, args.gpu_num, args.save)
-    
+
 
 # with open(".results/validation_results/cube_trial_1_corrupt_0/SymSATNet-Val/layers/20.pt", "rb") as f:
 #     S = torch.load(f).detach().cpu()
