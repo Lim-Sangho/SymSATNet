@@ -86,22 +86,14 @@ This problem has group symmetries represented by $G = R_{54} \otimes R_6$. Here 
 ## 6. Training and Results
 The following two plots show the test accuracy of each model in Sudoku and Rubik's cube during the 100 epochs of training.
 
-| ![sudoku_accuracy](img/sudoku_accuracy.png) |
-|:--:|
-| Test accuracy in Sudoku |
-
-| ![cube_accraucy](img/cube_accuracy.png) |
-|:--:|
-| Test accuracy in Rubik's cube |
+| ![sudoku_accuracy](img/sudoku_accuracy.png) | ![cube_accraucy](img/cube_accuracy.png) |
+|:--:|:--:|
+| Test accuracy in Sudoku | Test accuracy in Rubik's cube |
 
 Also, the following two plots show the test accuracy of each model in noisy Sudoku and noisy Rubik's cube with respect to the number of corrupted cells or facelets.
 
-| ![sudoku_robustness](img/sudoku_robustness.png) |
-|:--:|
-| Robustness in noisy Sudoku |
-
-| ![cube_robustness](img/cube_robustness.png) |
-|:--:|
-| Robustness in noisy Rubik's cube |
+| ![sudoku_robustness](img/sudoku_robustness.png) | ![cube_robustness](img/cube_robustness.png) |
+|:--:|:--:|
+| Robustness in noisy Sudoku | Robustness in noisy Rubik's cube |
 
 See main.py and experiment.ipynb for more information.
