@@ -2,18 +2,13 @@
 from __future__ import annotations
 import os
 import argparse
-import warnings
 from typing import Callable
-from sklearn.exceptions import ConvergenceWarning
-
-warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 import torch
 import matplotlib.pyplot as plt
 from IPython.display import display, clear_output
 from torch.utils.data import TensorDataset, DataLoader
 from tqdm.autonotebook import tqdm
-from time import sleep
 
 from utils.logger import *
 from utils.draw import *
@@ -149,9 +144,9 @@ def main(trial_num = 1, problem = "sudoku", model = "SymSATNet", corrupt_num = 0
         proj_period = {"sudoku": 10, "cube": 20}[problem]
         proj_lr = {"sudoku": 1.0, "cube": 1.0}[problem]
         rtol = {"sudoku": 0.05, "cube": 0.1}[problem]
-        max_err = [0.4, 0.5, 0.6, 0.6][corrupt_num]
+        max_err = [0.4, 0.5, 0.55, 0.6][corrupt_num]
         group = Group(grammar, perm, proj_period, proj_lr, rtol, max_err)
-        eps = [0.05, 0.05, 0.1, 0.2][corrupt_num]
+        eps = [0.05, 0.05, 0.05, 0.05][corrupt_num]
     else:
         group = None
 
