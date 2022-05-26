@@ -282,7 +282,7 @@ def main(trial_num = 1, problem = "sudoku", model = "SymSATNet", corrupt_num = 0
             print('S is Projected: {}'.format(group))
             print("Elapsed time: {}".format(start.elapsed_time(end)))
             if save:
-                valid_logger.log([epoch, group, start.elapsed_time(end)])
+                valid_logger.log([epoch, group, start.elapsed_time(end) / 1000])
 
             group.proj_period = float("inf")
             group.proj_lr = 0
@@ -295,25 +295,27 @@ def main(trial_num = 1, problem = "sudoku", model = "SymSATNet", corrupt_num = 0
         display(fig)
 
     
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--trial_num', type=int, default=1)
-    parser.add_argument('--problem', type=str, default='sudoku')
-    parser.add_argument('--model', type=str, default='SymSATNet')
-    parser.add_argument('--corrupt_num', type=int, default=0)
-    parser.add_argument('--gpu_num', type=int, default=0)
-    parser.add_argument('--save', action="store_true", default=False)
-    args = parser.parse_args()
+# if __name__ == "__main__":
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--trial_num', type=int, default=1)
+#     parser.add_argument('--problem', type=str, default='sudoku')
+#     parser.add_argument('--model', type=str, default='SymSATNet')
+#     parser.add_argument('--corrupt_num', type=int, default=0)
+#     parser.add_argument('--gpu_num', type=int, default=0)
+#     parser.add_argument('--save', action="store_true", default=False)
+#     args = parser.parse_args()
 
-    assert args.problem in ["sudoku", "cube"]
-    assert args.model in ["SATNet-Plain", "SATNet-300aux", "SymSATNet", "SymSATNet-Auto"]
+#     assert args.problem in ["sudoku", "cube"]
+#     assert args.model in ["SATNet-Plain", "SATNet-300aux", "SymSATNet", "SymSATNet-Auto"]
 
-    main(args.trial_num, args.problem, args.model, args.corrupt_num, args.gpu_num, args.save)
+#     main(args.trial_num, args.problem, args.model, args.corrupt_num, args.gpu_num, args.save)
 
 
-# with open(".results/validation_results/cube_trial_1_corrupt_0/SymSATNet-Val/layers/20.pt", "rb") as f:
-#     S = torch.load(f).detach().cpu()
-#     C = (S @ S.T)[1:, 1:]
-
-# print(symfind(C, 0.1, 0.4)[0])
+# grammar = Kron(Symm(4), Symm(4))
+# perm = torch.arange(grammar.dim)
+# G = Group(grammar, perm)
+# C = torch.rand(grammar.dim, grammar.dim)
+# C_proj = G.proj(C)
+# draw(C_proj, dpi = 700, save = "M.png")
+# print(prodfind(C_proj, 0.01, 0.2)[0][0])
 # %%

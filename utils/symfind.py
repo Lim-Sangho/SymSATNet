@@ -5,6 +5,7 @@ from itertools import compress
 from utils.algebra import *
 from utils.grammar import *
 from utils.group import *
+from utils.draw import draw
 import numpy as np
 import torch
 
@@ -47,6 +48,11 @@ def prodfind(C: torch.Tensor, rtol: float, max_err: float) -> list[tuple[Grammar
                 B = B * torch.sqrt(S)
                 A = A.T.reshape(-1, m, m).transpose(1, 2)
                 B = B.T.reshape(-1, n, n).transpose(1, 2)
+
+                # if C_hat.shape == (16, 16):
+                #     draw(C_hat, dpi = 700, save = "hat.png")
+                #     draw(A[0], dpi = 700, save = "A.png")
+                #     draw(B[0], dpi = 700, save = "B.png")
                 
                 splits.append((A, B))
 
@@ -199,6 +205,8 @@ def find_blocks(C: torch.Tensor, rtol: float) -> Optional[tuple[torch.Tensor]]:
     argsort = None
     
     while i < N-1:
+        # if len(C) == 15:
+            # draw(C, dpi = 700, save = f"{i}.png")
 
         if block == i:
             blocks.add(block)

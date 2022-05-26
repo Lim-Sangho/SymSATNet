@@ -13,7 +13,7 @@ def draw(D: Union[torch.Tensor, np.ndarray], color: Optional[str] = 'jet',
         plt.xticks([])
         plt.yticks([])
         plt.axis("off")
-        plt.savefig(f"{save}.pdf", dpi = dpi)
+        plt.savefig(f"{save}", dpi = dpi)
     else:
         plt.colorbar()
     plt.show()

@@ -42,9 +42,6 @@ SymSATNet assumes that some symmetries of the target rules are given a priori al
 We incorporated the symmetries into the SATNet's objective, and derive the equivariance requirement of the paramteter matrix of SATNet.
 Consequently, SymSATNet can learn with significantly reduced number of parameters using the basis elements of the space of equivariant matrices.
 
-## 4. SymFind
-SymFind is an automatic symmetry-detection algorithm, which receives a matrix $M$ as an input and returns a permutation group $G$ which closely approximates the symmetries in $M$: $\forall g \in G, \, gM \approx Mg$. The group symmetries discovered by SymFind can be used to train SymSATNet. Symfind can find the permutation groups defined by a manually designed grammar that covers a suitable range of practical permutation groups. SymFind calls two subroutine algorithms, SumFind and ProdFind, which may also recursively call SymFind to find the symmetries for smaller parts in M. 
-
 | ![sudoku_symmetry](img/sudoku_symmetry.png) |
 |:--:|
 | Symmetry-detection in Sudoku |
@@ -54,24 +51,33 @@ SymFind is an automatic symmetry-detection algorithm, which receives a matrix $M
 |:--:|
 | Symmetry-detection in Rubik's cube |
 
-- SumFind clusters entries in the input matrix as blocks since block-shaped clusters commonly arise in matrices equivariant with respect to a direct sum of groups.
 
-- ProdFind exploits a typical pattern of Kronecker product of matrices, and detects the presence of the pattern by applying SVD.
+## 4. SymFind
+SymFind is an automatic symmetry-detection algorithm, which receives a matrix $M$ as an input and returns a permutation group $G$ which closely approximates the symmetries in $M$: $\forall g \in G, \, gM \approx Mg$. The group symmetries discovered by SymFind can be used to train SymSATNet. Symfind can find the permutation groups defined by a manually designed grammar that covers a suitable range of practical permutation groups. SymFind calls two subroutine algorithms, SumFind and ProdFind, which may also recursively call SymFind to find the symmetries for smaller parts in M. 
+|   |   |
+|---|---|
+| ![sumfind](img/sumfind.gif) | SumFind clusters entries in the input matrix as blocks since block-shaped clusters commonly arise in matrices equivariant with respect to a direct sum of groups. |
+|   |   |
+
+|   |
+|---|
+| ![prodfind](img/prodfind.png) ProdFind exploits a typical pattern of Kronecker product of matrices, and detects the presence of the pattern by applying SVD. |
+|   |
 
 
 ## 5. Tasks
-Our first task is Sudoku. Sudoku has group symmetries represented by $G = (S_3 \wr S_3) \otimes (S_3 \wr S_3) \otimes S_9$. The following are three examples of permutations that preserve the validity of Sudoku solutions.
+Our first task is Sudoku. Sudoku has group symmetries represented by $G = (S_3 \wr S_3) \otimes (S_3 \wr S_3) \otimes S_9$. The following are three examples of permutations in $G$, which preserve the validity of Sudoku solutions.
 
 
 | ![sudoku_1](img/sudoku_1.png) |
 |:--:|
 | Column permutation within a stack |
 
-| ![sudoku_2](img/sudoku_3.png) |
+| ![sudoku_2](img/sudoku_2.png) |
 |:--:|
 | Stack permutation |
 
-| ![sudoku_3](img/sudoku_2.png) |
+| ![sudoku_3](img/sudoku_3.png) |
 |:--:|
 | Permutation of number occurences |
 

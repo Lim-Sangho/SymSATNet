@@ -127,7 +127,7 @@ class Cyclic(Grammar):
         self.orbits_cached = None
 
     def __str__(self) -> str:
-        return f"C{self.dim}"
+        return f"\u2124{self.dim}"
 
     def _proj(self, C: torch.Tensor) -> torch.Tensor:
         vector_inner = torch.einsum("ijk,jk...->i...", self.basis(), C)
