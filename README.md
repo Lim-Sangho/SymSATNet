@@ -51,7 +51,7 @@ a basis of the space of equivariant matrices).
 
 
 ## 4. SymFind
-SymFind is an automatic symmetry-detection algorithm, which receives a matrix $M$ as an input and returns a permutation group $G$ which closely approximates the symmetries in $M$: $\forall g \in G, \, gM \approx Mg$. The group symmetries discovered by SymFind can be used to train SymSATNet. Symfind can find the permutation groups defined by a manually designed grammar that covers a suitable range of practical permutation groups. SymFind calls two subroutine algorithms, SumFind and ProdFind, which may also recursively call SymFind to find the symmetries for smaller parts in $M$. 
+SymFind is an automatic symmetry-detection algorithm, which receives a matrix $M$ as an input and returns a permutation group $G$ which closely approximates the symmetries in $M$: $\forall g \in G, \, gM \approx Mg$. The symmetry group discovered by SymFind can be used to train SymSATNet. SymFind can find a permutation group expressible by a particular grammar which covers a suitable range of practical permutation groups. SymFind calls two subroutines, SumFind and ProdFind, which may also recursively call SymFind to find symmetries for smaller parts of $M$. 
 
 |   |   |
 |---|---|
