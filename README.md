@@ -33,7 +33,7 @@ SATNet and SymSATNet also require the following packages.
 
 
 ## 3. SymSATNet
-SymSATNet is a variant of SATNet, which abbreviates symmetry-aware SATNet.
+SymSATNet is a variant of SATNet. It is an abbreviation of symmetry-aware SATNet.
 SymSATNet assumes that some symmetries of the target rules are given a priori although the rules themselves are unknown.
 These symmetries can be obtained by a domain expert, or an automatic symmetry-detection algorithm, SymFind.
 We incorporated the symmetries into the SATNet's objective, and derive the equivariance requirement of the parameter matrix of SATNet.
