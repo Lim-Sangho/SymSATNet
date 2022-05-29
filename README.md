@@ -35,9 +35,10 @@ SATNet and SymSATNet also require the following packages.
 ## 3. SymSATNet
 SymSATNet is a variant of SATNet. It is an abbreviation of symmetry-aware SATNet.
 SymSATNet assumes that some symmetries of the target rules are given a priori although the rules themselves are unknown.
-These symmetries can be obtained by a domain expert, or an automatic symmetry-detection algorithm, SymFind.
-We incorporated the symmetries into the SATNet's objective, and derive the equivariance requirement of the parameter matrix of SATNet.
-Consequently, SymSATNet can learn with significantly reduced number of parameters using the basis elements of the space of equivariant matrices.
+These symmetries can be obtained by a domain expert, or an automatic symmetry-detection algorithm, such as our SymFind.
+The given symmetries get incorporated into the SATNet's objective, and become 
+the equivariance requirement on the parameter matrix of SATNet, which leads to the substantial reduction in the number of parameters to learn in SymSATNet (via 
+a basis of the space of equivariant matrices).
 
 | ![sudoku_symmetry](img/sudoku_symmetry.png) |
 |:--:|
