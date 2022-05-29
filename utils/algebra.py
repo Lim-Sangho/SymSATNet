@@ -1,11 +1,6 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
-from sklearn.cluster import KMeans
 import torch
 import math
-
-if TYPE_CHECKING:
-    from utils.grammar import Grammar
 
 
 def divisors(n: int) -> list[int]:
@@ -25,9 +20,6 @@ def coordinates(vector: torch.Tensor, basis: torch.Tensor) -> torch.Tensor:
     basis_inner = torch.einsum("a"+summand_letters+"->a", basis * basis)
     vector_inner = torch.einsum("a"+summand_letters+","+summand_letters+"...->a...", basis, vector)
     return torch.einsum("a,a...->a...", 1 / basis_inner, vector_inner)
-    # basis_inner = torch.einsum("i...->i", basis * basis)
-    # vector_inner = torch.einsum("i...->i", basis * vector)
-    # return vector_inner / basis_inner
 
 
 def gram_schmidt(vectors: torch.Tensor) -> torch.Tensor:
@@ -51,51 +43,11 @@ def gram_schmidt(vectors: torch.Tensor) -> torch.Tensor:
     
     return vectors
 
-    
-# def reduce_basis(basis: torch.Tensor) -> torch.Tensor:
-#     """
-#     Remove linearly dependent vectors in the basis.
-#     """
-#     basis = gram_schmidt(basis)
-#     is_zero = torch.Tensor([torch.allclose(B, torch.zeros(1)) for B in basis])
-#     is_nonzero = torch.logical_not(is_zero)
-#     return basis[is_nonzero]
-
-
-# def clustering(vectors: torch.Tensor, n_clusters: int, tol: float) -> torch.Tensor:
-#     """
-#     Do clustering with the row vectors.
-#     """
-#     labels = - torch.ones(len(vectors))
-#     for n in range(n_clusters):
-#         index = min(torch.nonzero(labels == -1).flatten().tolist(), default = None)
-#         if index is None:
-#             break
-#         for i in range(len(vectors)):
-#             threshold = torch.norm(vectors[index]) * tol
-#             if torch.norm(vectors[i] - vectors[index]) <= threshold:
-#                 labels[i] = n
-    
-#     return labels
-
 
 def swap(tensor: torch.Tensor, i: int, j: int) -> torch.Tensor:
     """
     Swap the indices i and j of tensor.
     """
-    # n = len(vector)
-
-    # if vector.dim() == 1:
-    #     new_vector = vector.clone()
-    #     new_vector[i], new_vector[j] = vector[j], vector[i]
-    #     return new_vector
-
-    # if vector.dim() == 2:
-    #     perm = torch.arange(0, n)
-    #     perm[i], perm[j] = j, i
-    #     perm = torch.eye(n)[perm]
-    #     return perm @ vector @ perm
-    
     dim = tensor.dim()
     shift = tuple(range(1, dim)) + (0,)
     perm = torch.arange(len(tensor))
@@ -118,52 +70,6 @@ def shuffle(vector: torch.Tensor, n_shuffle: int) -> torch.Tensor:
         j = torch.randint(0, n, (1,))
         vector = swap(vector, i, j)
     return vector
-
-def shuffle_all(vectors: torch.Tensor, n_shuffle: int) -> torch.Tensor:
-    """
-    Shuffle the indices of all the vectors with the same permutation.
-    """
-    n = vectors.shape[1]
-    new_vectors = vectors.clone()
-    for _ in range(n_shuffle):
-        i = torch.randint(0, n, (1,))
-        j = torch.randint(0, n, (1,))
-        for k in range(len(new_vectors)):
-            new_vectors[k] = swap(new_vectors[k], i, j)
-    return new_vectors
-
-
-def kmeans_auto(vectors: torch.Tensor, rtol: Optional[float] = 1) -> KMeans:
-    """
-    Do clustering with n_clusters such that
-    inertia(n_clusters) < atol and inertia(n_clusters - 1) >= atol.
-    """
-    assert len(vectors > 0)
-    if vectors.dim() == 1:
-        vectors = torch.stack([vectors, vectors]).T
-
-    upper_bound = len(vectors)
-    lower_bound = 1
-    atol = torch.var(vectors) * rtol
-    cache = {}
-
-    while upper_bound > lower_bound:
-        n_clusters = (upper_bound + lower_bound) // 2
-        kmeans = KMeans(n_clusters = n_clusters)
-        kmeans.fit(vectors)
-        cache[n_clusters] = kmeans
-        inertia = kmeans.inertia_
-        if inertia < atol:
-            upper_bound = n_clusters
-        else:
-            lower_bound = n_clusters + 1
-    
-    if upper_bound not in cache:
-        kmeans = KMeans(n_clusters = upper_bound)
-        kmeans.fit(vectors)
-        cache[upper_bound] = kmeans
-    
-    return cache[upper_bound]
 
 
 def set_distance(A: torch.Tensor, B: torch.Tensor) -> float:

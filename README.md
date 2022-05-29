@@ -9,25 +9,21 @@ We recommend creating a new conda environment and installing those packages on t
     conda activate satnet
     conda install pytorch==1.8.0 torchvision==0.9.0 torchaudio==0.8.0 cudatoolkit=11.1 -c pytorch -c conda-forge
 
-Now, we can install SATNet:
+Now, we can install SATNet,
 
     git clone https://github.com/locuslab/SATNet ./src/SATNet
-    python src/SATNet/setup.py install
-
-or via pip:
-
-    pip install satnet
+    cd src/SATNet; python setup.py install; cd ../..
 
 and install SymSATNet by the following.
 
-    python src/SymSATNet/setup.py install
+    cd src/SymSATNet; python setup.py install; cd ../..
     
 SATNet and SymSATNet also require the following packages.
 
-    conda install -c pytorch tqdm
-    conda install -c anaconda ipython
-    conda install -c anaconda scikit-learn
     conda install -c conda-forge matplotlib
+    conda install -c conda-forge packaging
+    conda install -c anaconda ipython
+    conda install -c pytorch tqdm
 
 
 ## 2. Related Work
@@ -39,39 +35,47 @@ SATNet and SymSATNet also require the following packages.
 ## 3. SymSATNet
 SymSATNet is a variant of SATNet, which abbreviates symmetry-aware SATNet.
 SymSATNet assumes that some symmetries of the target rules are given a priori although the rules themselves are unknown.
-We incorporated the symmetries into the SATNet's objective, and derive the equivariance requirement of the paramteter matrix of SATNet.
+These symmetries can be obtained by a domain expert, or an automatic symmetry-detection algorithm, SymFind.
+We incorporated the symmetries into the SATNet's objective, and derive the equivariance requirement of the parameter matrix of SATNet.
 Consequently, SymSATNet can learn with significantly reduced number of parameters using the basis elements of the space of equivariant matrices.
-
-## 4. SymFind
-SymFind is an automatic symmetry-detection algorithm, which receives a matrix $M$ as an input and returns a permutation group $G$ which closely approximates the symmetries in $M$: $\forall g \in G, \, gM \approx Mg$. The group symmetries discovered by SymFind can be used to train SymSATNet. Symfind can find the permutation groups defined by a manually designed grammar that covers a suitable range of practical permutation groups. SymFind calls two subroutine algorithms, SumFind and ProdFind, which may also recursively call SymFind to find the symmetries for smaller parts in M. 
 
 | ![sudoku_symmetry](img/sudoku_symmetry.png) |
 |:--:|
-| Symmetry-detection in Sudoku |
+| Parameters having symmetries in Sudoku |
 
 
 | ![cube_symmetry](img/cube_symmetry.png) |
 |:--:|
-| Symmetry-detection in Rubik's cube |
+| Parameters having symmetries in Rubik's cube |
 
-- SumFind clusters entries in the input matrix as blocks since block-shaped clusters commonly arise in matrices equivariant with respect to a direct sum of groups.
 
-- ProdFind exploits a typical pattern of Kronecker product of matrices, and detects the presence of the pattern by applying SVD.
+## 4. SymFind
+SymFind is an automatic symmetry-detection algorithm, which receives a matrix $M$ as an input and returns a permutation group $G$ which closely approximates the symmetries in $M$: $\forall g \in G, \, gM \approx Mg$. The group symmetries discovered by SymFind can be used to train SymSATNet. Symfind can find the permutation groups defined by a manually designed grammar that covers a suitable range of practical permutation groups. SymFind calls two subroutine algorithms, SumFind and ProdFind, which may also recursively call SymFind to find the symmetries for smaller parts in $M$. 
+
+|   |   |
+|---|---|
+| ![sumfind](img/sumfind.gif) | SumFind clusters entries in the input matrix as blocks since block-shaped clusters commonly arise in matrices equivariant with respect to a direct sum of groups. |
+
+
+| ![prodfind](img/prodfind.png) |
+|---|
+| ProdFind exploits a typical pattern of Kronecker product of matrices, and detects the presence of the pattern by applying SVD. |
+
 
 
 ## 5. Tasks
-Our first task is Sudoku. Sudoku has group symmetries represented by $G = (S_3 \wr S_3) \otimes (S_3 \wr S_3) \otimes S_9$. The following are three examples of permutations that preserve the validity of Sudoku solutions.
+Our first task is Sudoku. Sudoku has group symmetries represented by $G = (S_3 \wr S_3) \otimes (S_3 \wr S_3) \otimes S_9$. The following are three examples of permutations in $G$, which preserve the validity of Sudoku solutions.
 
 
 | ![sudoku_1](img/sudoku_1.png) |
 |:--:|
 | Column permutation within a stack |
 
-| ![sudoku_2](img/sudoku_3.png) |
+| ![sudoku_2](img/sudoku_2.png) |
 |:--:|
 | Stack permutation |
 
-| ![sudoku_3](img/sudoku_2.png) |
+| ![sudoku_3](img/sudoku_3.png) |
 |:--:|
 | Permutation of number occurences |
 
@@ -96,4 +100,4 @@ Also, the following two plots show the test accuracy of each model in noisy Sudo
 |:--:|:--:|
 | Robustness in noisy Sudoku | Robustness in noisy Rubik's cube |
 
-See main.py and experiment.ipynb for more information.
+See [main.py](main.py) and [experiment.ipynb](experiment.ipynb) for more information.
