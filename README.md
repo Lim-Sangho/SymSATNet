@@ -31,7 +31,7 @@ SATNet and SymSATNet also require the following packages.
 
 
 ## 2. Related Work
-- The implementation of SymSATNet is based on [the original SATNet code](https://github.com/locuslab/SATNet) by [Wang et. al.](http://proceedings.mlr.press/v97/wang19e.html) [2019] available under an MIT License which is also contained in this repository.
+- The implementation of SymSATNet is based on [the original SATNet code](https://github.com/locuslab/SATNet) by [Wang et. al.](http://proceedings.mlr.press/v97/wang19e.html) [2019] available under the MIT License which is also contained in this repository.
 
 - We used the Sudoku generator in [this repository](https://github.com/Kyubyong/sudoku) by Park [2018].
 
