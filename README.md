@@ -1,4 +1,5 @@
 # Learning Symmetric Rules with SATNet
+This repository contains the source code for reproducing the experiments in the paper [Learning Symmetric Rules with SATNet](https://arxiv.org/abs/2206.13998?context=math) by Sangho Lim, Eun-Gyeol Oh, and [Hongseok Yang](https://sites.google.com/view/hongseokyang/home).
 
 ## 1. Dependencies
 We only provide the GPU implementation of SymSATNet.
